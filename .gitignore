@@ -1,0 +1,31 @@
+# clasp
+.clasp.json
+
+# Node modules (if we add any npm dependencies later)
+node_modules/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Apps Script
+.claspignore
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
