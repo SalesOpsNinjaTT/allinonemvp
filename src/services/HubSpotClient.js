@@ -152,6 +152,13 @@ function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
     value: days120Ago.getTime().toString()
   });
   
+  // Filter 4: NOT Closed Lost
+  filters.push({
+    propertyName: 'closed_status',
+    operator: 'NEQ',
+    value: 'Closed lost (please specify the reason)'
+  });
+  
   const filterGroups = [{ filters: filters }];
   
   const payload = {
