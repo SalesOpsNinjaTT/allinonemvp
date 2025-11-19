@@ -17,17 +17,17 @@ function createControlSheet() {
   Logger.log(`   ID: ${sheetId}`);
   Logger.log(`   URL: ${sheetUrl}`);
   
-  // Delete default Sheet1
-  const defaultSheet = ss.getSheetByName('Sheet1');
-  if (defaultSheet) {
-    ss.deleteSheet(defaultSheet);
-  }
-  
-  // Create all tabs
+  // Create all tabs FIRST
   setupSalespeopleConfig(ss);
   setupGoalsAndQuotas(ss);
   setupTechAccess(ss);
   setupInstructions(ss);
+  
+  // Then delete default Sheet1
+  const defaultSheet = ss.getSheetByName('Sheet1');
+  if (defaultSheet) {
+    ss.deleteSheet(defaultSheet);
+  }
   
   Logger.log('');
   Logger.log('🎉 SETUP COMPLETE!');
