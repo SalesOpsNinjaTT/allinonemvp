@@ -3,6 +3,9 @@
  * Reads configuration from Control Sheet
  */
 
+// Control Sheet ID - All-In-One 2.0 MVP
+const CONTROL_SHEET_ID = '1-zipx1vWfjYaMjgl7BbqfCVjl8NZch9DMk5T-DRfnnQ';
+
 // Control Sheet Tab Names
 const TAB_CONFIG = '👥 Salespeople Config';
 const TAB_GOALS = '🎯 Goals & Quotas';
@@ -25,7 +28,7 @@ function findTab(ss, emojiName, plainName) {
  * @returns {Object} Configuration object
  */
 function loadConfiguration() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
   
   // Read Salespeople Config
   const configSheet = findTab(ss, TAB_CONFIG, 'Salespeople Config');
