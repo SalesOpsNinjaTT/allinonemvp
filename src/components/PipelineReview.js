@@ -3,10 +3,9 @@
  * 
  * Displays deal pipeline data from HubSpot with call quality scores
  * Includes manual notes preservation and format preservation across refreshes
+ * 
+ * Note: Uses TAB_PIPELINE constant from SheetProvisioner.js
  */
-
-// Tab name constant (must match SheetProvisioner)
-const TAB_PIPELINE = '📊 Pipeline Review';
 
 // ============================================================================
 // FIELD CONFIGURATION
