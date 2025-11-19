@@ -28,7 +28,8 @@ const CORE_FIELDS = [
   { property: 'notes_last_updated', header: 'Last Activity', type: 'date' },
   { property: 'notes_next_activity_date', header: 'Next Activity', type: 'date' },
   { property: 'next_task_name', header: 'Next Task Name', enabled: false, type: 'text' }, // Future: needs API permissions
-  { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' }
+  { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' },
+  { property: 'sales_note_to_lc', header: 'calls history', type: 'text' }
 ];
 
 // Call quality score fields (color-coded red-yellow-green)
