@@ -257,8 +257,8 @@ function getOwnerIdByEmail(email) {
  * @returns {string} Full URL to the deal in HubSpot
  */
 function buildDealUrl(dealId) {
-  // Simple US-based URL - can be enhanced later for regions
-  return `https://app.hubspot.com/contacts/record/0-3/${dealId}/`;
+  // EU region URL (portal ID: 25196166)
+  return `https://app-eu1.hubspot.com/contacts/25196166/record/0-3/${dealId}/`;
 }
 
 // ============================================================================
