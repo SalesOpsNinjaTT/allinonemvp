@@ -60,6 +60,14 @@ function fetchDealsByOwner(ownerEmail, properties, options = {}) {
   try {
     Logger.log(`Fetching deals for ${ownerEmail}...`);
     
+    // Step 1: Get owner ID from email
+    const ownerId = getOwnerIdByEmail(ownerEmail);
+    if (!ownerId) {
+      Logger.log(`  Warning: Owner not found for ${ownerEmail}, returning 0 deals`);
+      return [];
+    }
+    Logger.log(`  Owner ID: ${ownerId}`);
+    
     const accessToken = getHubSpotAccessToken();
     const allDeals = [];
     let after = null;
@@ -69,7 +77,7 @@ function fetchDealsByOwner(ownerEmail, properties, options = {}) {
       pageCount++;
       Logger.log(`  Page ${pageCount}...`);
       
-      const response = fetchDealsPage(accessToken, properties, ownerEmail, after, options);
+      const response = fetchDealsPage(accessToken, properties, ownerId, after, options);
       
       if (response.results && response.results.length > 0) {
         allDeals.push(...response.results);
@@ -98,24 +106,24 @@ function fetchDealsByOwner(ownerEmail, properties, options = {}) {
  * Fetches a single page of deals from HubSpot
  * @param {string} accessToken - HubSpot access token
  * @param {Array<string>} properties - Properties to fetch
- * @param {string} ownerEmail - Owner email filter
+ * @param {string} ownerId - Owner ID filter (numeric)
  * @param {string} after - Pagination cursor
  * @param {Object} options - Additional filter options
  * @returns {Object} API response object
  */
-function fetchDealsPage(accessToken, properties, ownerEmail, after, options = {}) {
+function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
   const url = HUBSPOT_API_CONFIG.BASE_URL + HUBSPOT_API_CONFIG.ENDPOINTS.DEALS_SEARCH;
   
   // Build filter groups
   const filterGroups = [];
   
-  // Filter by owner email
-  if (ownerEmail) {
+  // Filter by owner ID
+  if (ownerId) {
     filterGroups.push({
       filters: [{
         propertyName: 'hubspot_owner_id',
         operator: 'EQ',
-        value: ownerEmail
+        value: ownerId.toString()
       }]
     });
   }
@@ -174,6 +182,57 @@ function fetchDealsPage(accessToken, properties, ownerEmail, after, options = {}
   }
   
   return JSON.parse(responseText);
+}
+
+// ============================================================================
+// OWNER LOOKUP
+// ============================================================================
+
+/**
+ * Gets owner ID by email address
+ * @param {string} email - Owner email address
+ * @returns {string|null} Owner ID or null if not found
+ */
+function getOwnerIdByEmail(email) {
+  try {
+    const accessToken = getHubSpotAccessToken();
+    const url = HUBSPOT_API_CONFIG.BASE_URL + HUBSPOT_API_CONFIG.ENDPOINTS.OWNERS;
+    
+    const options = {
+      method: 'get',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      },
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const statusCode = response.getResponseCode();
+    
+    if (statusCode !== 200) {
+      Logger.log(`Failed to fetch owners: ${statusCode}`);
+      return null;
+    }
+    
+    const data = JSON.parse(response.getContentText());
+    
+    if (data.results) {
+      // Search for owner by email
+      const owner = data.results.find(owner => 
+        owner.email && owner.email.toLowerCase() === email.toLowerCase()
+      );
+      
+      if (owner) {
+        return owner.id.toString();
+      }
+    }
+    
+    return null;
+    
+  } catch (error) {
+    Logger.log(`Error getting owner ID for ${email}: ${error.message}`);
+    return null;
+  }
 }
 
 // ============================================================================

@@ -66,12 +66,31 @@ function generateAllDashboards() {
     const message = `Complete: ${processedCount} successful, ${errorCount} errors (${duration}s)`;
     
     Logger.log(`\n=== ${message} ===`);
-    SpreadsheetApp.getActiveSpreadsheet().toast(message, 'Dashboard Generation', 10);
+    
+    // Show toast if running from a spreadsheet context
+    try {
+      const activeSheet = SpreadsheetApp.getActiveSpreadsheet();
+      if (activeSheet) {
+        activeSheet.toast(message, 'Dashboard Generation', 10);
+      }
+    } catch (e) {
+      // No active spreadsheet, that's okay
+    }
     
   } catch (error) {
     Logger.log(`FATAL ERROR: ${error.message}`);
     Logger.log(error.stack);
-    SpreadsheetApp.getActiveSpreadsheet().toast(`Error: ${error.message}`, 'Error', 10);
+    
+    // Show toast if running from a spreadsheet context
+    try {
+      const activeSheet = SpreadsheetApp.getActiveSpreadsheet();
+      if (activeSheet) {
+        activeSheet.toast(`Error: ${error.message}`, 'Error', 10);
+      }
+    } catch (e) {
+      // No active spreadsheet, that's okay
+    }
+    
     throw error;
   }
 }
