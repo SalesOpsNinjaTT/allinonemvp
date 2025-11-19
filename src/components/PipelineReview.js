@@ -119,7 +119,14 @@ function updatePipelineReview(individualSheet, person) {
     // Step 2: Fetch deals from HubSpot
     Logger.log('  Step 2: Fetching deals from HubSpot...');
     const properties = getPipelineReviewProperties();
-    const deals = fetchDealsByOwner(person.email, properties);
+    const options = {};
+    
+    // Pass HubSpot User ID if available
+    if (person.hubspotUserId && person.hubspotUserId !== '') {
+      options.hubspotUserId = person.hubspotUserId;
+    }
+    
+    const deals = fetchDealsByOwner(person.email, properties, options);
     Logger.log(`  Found ${deals.length} deals`);
     
     // Step 3: Build data array

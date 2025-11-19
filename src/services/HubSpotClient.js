@@ -51,22 +51,30 @@ function getHubSpotAccessToken() {
 
 /**
  * Fetches deals for a specific owner
- * @param {string} ownerEmail - Email of the deal owner
+ * @param {string} ownerEmailOrId - Email or User ID of the deal owner
  * @param {Array<string>} properties - Array of property names to fetch
- * @param {Object} options - Optional filters (dateRange, etc.)
+ * @param {Object} options - Optional filters (dateRange, hubspotUserId, etc.)
  * @returns {Array<Object>} Array of deal objects
  */
-function fetchDealsByOwner(ownerEmail, properties, options = {}) {
+function fetchDealsByOwner(ownerEmailOrId, properties, options = {}) {
   try {
-    Logger.log(`Fetching deals for ${ownerEmail}...`);
+    Logger.log(`Fetching deals for ${ownerEmailOrId}...`);
     
-    // Step 1: Get owner ID from email
-    const ownerId = getOwnerIdByEmail(ownerEmail);
-    if (!ownerId) {
-      Logger.log(`  Warning: Owner not found for ${ownerEmail}, returning 0 deals`);
-      return [];
+    let ownerId;
+    
+    // Check if we have a direct User ID in options
+    if (options.hubspotUserId && options.hubspotUserId !== '') {
+      ownerId = options.hubspotUserId.toString();
+      Logger.log(`  Using provided User ID: ${ownerId}`);
+    } else {
+      // Fall back to email lookup (requires API permission)
+      ownerId = getOwnerIdByEmail(ownerEmailOrId);
+      if (!ownerId) {
+        Logger.log(`  Warning: Owner not found for ${ownerEmailOrId}, returning 0 deals`);
+        return [];
+      }
+      Logger.log(`  Looked up User ID: ${ownerId}`);
     }
-    Logger.log(`  Owner ID: ${ownerId}`);
     
     const accessToken = getHubSpotAccessToken();
     const allDeals = [];
@@ -97,7 +105,7 @@ function fetchDealsByOwner(ownerEmail, properties, options = {}) {
     return allDeals;
     
   } catch (error) {
-    Logger.log(`Error fetching deals for ${ownerEmail}: ${error.message}`);
+    Logger.log(`Error fetching deals for ${ownerEmailOrId}: ${error.message}`);
     throw error;
   }
 }
