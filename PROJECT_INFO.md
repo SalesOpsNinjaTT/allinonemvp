@@ -4,8 +4,9 @@
 - **GitHub**: https://github.com/SalesOpsNinjaTT/allinonemvp.git
 
 ## Apps Script Project
-- **Script ID**: `1_Dyzn4k87LYMIxF_7LCKVpcCqhXOqu1cnMq0utRPPXQ3IPu_gULjy6Gu`
-- **Editor URL**: https://script.google.com/d/1_Dyzn4k87LYMIxF_7LCKVpcCqhXOqu1cnMq0utRPPXQ3IPu_gULjy6Gu/edit
+- **Account**: konstantin.gevorkov@tripleten.com (Work Account) ✅
+- **Script ID**: `1ndG3sIH-I_4Sz8OoHKRCU8Mr1ly2myU25Iw2tlJaEYf70hz3fv8wgD8k`
+- **Editor URL**: https://script.google.com/d/1ndG3sIH-I_4Sz8OoHKRCU8Mr1ly2myU25Iw2tlJaEYf70hz3fv8wgD8k/edit
 
 ## Setup Status
 
