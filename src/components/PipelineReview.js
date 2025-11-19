@@ -144,12 +144,6 @@ function updatePipelineReview(individualSheet, person) {
     const deals = fetchDealsByOwner(person.email, properties, options);
     Logger.log(`  Found ${deals.length} deals`);
     
-    // Debug: Check first deal for date properties
-    if (deals.length > 0) {
-      const firstDeal = deals[0];
-      Logger.log(`  DEBUG - First deal properties: notes_last_updated=${firstDeal.properties.notes_last_updated}, notes_next_activity_date=${firstDeal.properties.notes_next_activity_date}`);
-    }
-    
     // Step 3: Build data array
     Logger.log('  Step 3: Building data array...');
     const { dataArray, urlMap, dealIdMap } = buildPipelineDataArray(deals);

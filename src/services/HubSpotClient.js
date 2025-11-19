@@ -296,12 +296,20 @@ function extractDealProperty(deal, propertyName) {
 function extractDateProperty(deal, propertyName, timezone = 'America/New_York') {
   const value = extractDealProperty(deal, propertyName);
   
-  if (!value || value === '' || value === '0') {
+  if (!value || value === '' || value === '0' || value === 'null') {
     return '';
   }
   
   try {
     const valueStr = value.toString().trim();
+    
+    // Check if it's an ISO date string (e.g., 2025-08-18T17:46:59.963Z)
+    if (/^\d{4}-\d{2}-\d{2}T/.test(valueStr)) {
+      const date = new Date(valueStr);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
     
     // Check if it's already in YYYY-MM-DD format
     if (/^\d{4}-\d{2}-\d{2}$/.test(valueStr)) {
@@ -319,7 +327,7 @@ function extractDateProperty(deal, propertyName, timezone = 'America/New_York') 
       return '';
     }
     
-    // Convert to Date object in EST timezone
+    // Convert to Date object
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) {
       return '';
