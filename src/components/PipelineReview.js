@@ -422,6 +422,7 @@ function restorePreservedData(sheet, preserved, dealIdMap) {
   const dealNameCol = headers.indexOf('Deal Name') + 1;
   const note1Col = headers.indexOf('Note 1') + 1;
   const note2Col = headers.indexOf('Note 2') + 1;
+  const currentColCount = headers.length;
   
   let restoredCount = 0;
   
@@ -432,7 +433,7 @@ function restorePreservedData(sheet, preserved, dealIdMap) {
     if (dealName && preserved[dealName.toString()]) {
       const data = preserved[dealName.toString()];
       
-      // Restore notes
+      // Restore notes only (skip formatting if column count changed)
       if (note1Col > 0 && data.note1) {
         sheet.getRange(rowIndex, note1Col).setValue(data.note1);
       }
@@ -440,16 +441,21 @@ function restorePreservedData(sheet, preserved, dealIdMap) {
         sheet.getRange(rowIndex, note2Col).setValue(data.note2);
       }
       
-      // Restore formatting for entire row
-      const rowRange = sheet.getRange(rowIndex, 1, 1, headers.length);
-      if (data.backgrounds) {
-        rowRange.setBackgrounds([data.backgrounds]);
-      }
-      if (data.fontColors) {
-        rowRange.setFontColors([data.fontColors]);
-      }
-      if (data.fontWeights) {
-        rowRange.setFontWeights([data.fontWeights]);
+      // Only restore formatting if column count matches
+      if (data.backgrounds && data.backgrounds.length === currentColCount) {
+        const rowRange = sheet.getRange(rowIndex, 1, 1, currentColCount);
+        try {
+          rowRange.setBackgrounds([data.backgrounds]);
+          if (data.fontColors) {
+            rowRange.setFontColors([data.fontColors]);
+          }
+          if (data.fontWeights) {
+            rowRange.setFontWeights([data.fontWeights]);
+          }
+        } catch (e) {
+          // Skip formatting if there's an error
+          Logger.log(`  Warning: Could not restore formatting for row ${rowIndex}: ${e.message}`);
+        }
       }
       
       restoredCount++;
