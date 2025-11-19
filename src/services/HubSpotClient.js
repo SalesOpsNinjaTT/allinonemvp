@@ -122,40 +122,37 @@ function fetchDealsByOwner(ownerEmailOrId, properties, options = {}) {
 function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
   const url = HUBSPOT_API_CONFIG.BASE_URL + HUBSPOT_API_CONFIG.ENDPOINTS.DEALS_SEARCH;
   
-  // Build filter groups
-  const filterGroups = [];
+  // Build filters (all filters in one group = AND logic)
+  const filters = [];
   
-  // Filter by owner ID
+  // Filter 1: Owner ID
   if (ownerId) {
-    filterGroups.push({
-      filters: [{
-        propertyName: 'hubspot_owner_id',
-        operator: 'EQ',
-        value: ownerId.toString()
-      }]
+    filters.push({
+      propertyName: 'hubspot_owner_id',
+      operator: 'EQ',
+      value: ownerId.toString()
     });
   }
   
-  // Add date filter if provided
-  if (options.dateProperty && options.startDate) {
-    const dateFilters = [];
-    
-    dateFilters.push({
-      propertyName: options.dateProperty,
-      operator: 'GTE',
-      value: new Date(options.startDate).getTime().toString()
-    });
-    
-    if (options.endDate) {
-      dateFilters.push({
-        propertyName: options.dateProperty,
-        operator: 'LTE',
-        value: new Date(options.endDate).getTime().toString()
-      });
-    }
-    
-    filterGroups.push({ filters: dateFilters });
-  }
+  // Filter 2: Deal Stage (Partnership Proposal, Negotiation, Demonstrating Value)
+  filters.push({
+    propertyName: 'dealstage',
+    operator: 'IN',
+    values: ['90284260', '90284261', '90284259']
+  });
+  
+  // Filter 3: Create Date (last 120 days)
+  const now = new Date();
+  const days120Ago = new Date();
+  days120Ago.setDate(now.getDate() - 120);
+  
+  filters.push({
+    propertyName: 'createdate',
+    operator: 'GTE',
+    value: days120Ago.getTime().toString()
+  });
+  
+  const filterGroups = [{ filters: filters }];
   
   const payload = {
     properties: properties,
