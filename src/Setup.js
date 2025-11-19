@@ -45,15 +45,6 @@ function createControlSheet() {
   Logger.log('4. Run testSingleSalesperson() to test');
   Logger.log('');
   
-  // Return the URL so user can click it
-  SpreadsheetApp.getUi().alert(
-    'Control Sheet Created!',
-    'Sheet Name: ' + SHEET_NAME + '\n\n' +
-    'Click OK, then check the logs for the URL.\n\n' +
-    'Or find it in your Google Drive.',
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
-  
   return sheetUrl;
 }
 
