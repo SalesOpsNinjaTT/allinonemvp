@@ -38,7 +38,14 @@ function generateAllDashboards() {
         Logger.log(`  Sheet ID: ${sheet.getId()}`);
         Logger.log(`  Sheet URL: ${sheet.getUrl()}`);
         
-        // TODO: Phase 2 - Update Pipeline Review tab
+        // Update Pipeline Review tab
+        const pipelineResult = updatePipelineReview(sheet, person);
+        if (pipelineResult.success) {
+          Logger.log(`  ✅ Pipeline Review: ${pipelineResult.dealCount} deals`);
+        } else {
+          Logger.log(`  ❌ Pipeline Review failed: ${pipelineResult.error}`);
+        }
+        
         // TODO: Phase 3 - Update Bonus Calculation tab
         // TODO: Phase 4 - Update Enrollment Tracker tab
         // TODO: Phase 5 - Update Operational Metrics tab
