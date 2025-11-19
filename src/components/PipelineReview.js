@@ -262,12 +262,33 @@ function writeDataToSheet(sheet, dataArray, urlMap) {
   const range = sheet.getRange(1, 1, dataArray.length, dataArray[0].length);
   range.setValues(dataArray);
   
-  // Apply hyperlinks to Deal Name column (Column B, row 2 onwards)
-  Object.keys(urlMap).forEach(rowIndex => {
-    const url = urlMap[rowIndex];
-    const cell = sheet.getRange(parseInt(rowIndex), 2); // Column B (Deal Name)
-    cell.setFormula(`=HYPERLINK("${url}", "${cell.getValue()}")`);
-  });
+  // Apply hyperlinks to Deal Name column (Column A) - batch operation
+  const dealNameCol = 1; // Column A
+  const rowCount = dataArray.length - 1; // Exclude header
+  
+  if (rowCount > 0 && Object.keys(urlMap).length > 0) {
+    // Build rich text values array for all rows
+    const richTextValues = [];
+    
+    for (let i = 0; i < rowCount; i++) {
+      const rowIndex = i + 2; // +2 for header and 0-based
+      const dealName = dataArray[i + 1][0]; // +1 to skip header row
+      const url = urlMap[rowIndex];
+      
+      if (url && dealName) {
+        const richText = SpreadsheetApp.newRichTextValue()
+          .setText(dealName)
+          .setLinkUrl(url)
+          .build();
+        richTextValues.push([richText]);
+      } else {
+        richTextValues.push([dealName]); // Plain text if no URL
+      }
+    }
+    
+    // Apply all hyperlinks at once
+    sheet.getRange(2, dealNameCol, rowCount, 1).setRichTextValues(richTextValues);
+  }
 }
 
 /**
@@ -424,42 +445,38 @@ function restorePreservedData(sheet, preserved, dealIdMap) {
   const note2Col = headers.indexOf('Note 2') + 1;
   const currentColCount = headers.length;
   
+  // Read all deal names at once
+  const dealNames = sheet.getRange(2, dealNameCol, lastRow - 1, 1).getValues();
+  
+  // Prepare batch updates for notes
+  const note1Updates = [];
+  const note2Updates = [];
   let restoredCount = 0;
   
-  // Restore for each row
-  for (let rowIndex = 2; rowIndex <= lastRow; rowIndex++) {
-    const dealName = sheet.getRange(rowIndex, dealNameCol).getValue();
+  // Build updates array
+  for (let i = 0; i < dealNames.length; i++) {
+    const dealName = dealNames[i][0];
+    const rowIndex = i + 2; // +2 for header and 0-based index
     
     if (dealName && preserved[dealName.toString()]) {
       const data = preserved[dealName.toString()];
       
-      // Restore notes only (skip formatting if column count changed)
-      if (note1Col > 0 && data.note1) {
-        sheet.getRange(rowIndex, note1Col).setValue(data.note1);
-      }
-      if (note2Col > 0 && data.note2) {
-        sheet.getRange(rowIndex, note2Col).setValue(data.note2);
-      }
-      
-      // Only restore formatting if column count matches
-      if (data.backgrounds && data.backgrounds.length === currentColCount) {
-        const rowRange = sheet.getRange(rowIndex, 1, 1, currentColCount);
-        try {
-          rowRange.setBackgrounds([data.backgrounds]);
-          if (data.fontColors) {
-            rowRange.setFontColors([data.fontColors]);
-          }
-          if (data.fontWeights) {
-            rowRange.setFontWeights([data.fontWeights]);
-          }
-        } catch (e) {
-          // Skip formatting if there's an error
-          Logger.log(`  Warning: Could not restore formatting for row ${rowIndex}: ${e.message}`);
-        }
-      }
+      note1Updates.push([data.note1 || '']);
+      note2Updates.push([data.note2 || '']);
       
       restoredCount++;
+    } else {
+      note1Updates.push(['']);
+      note2Updates.push(['']);
     }
+  }
+  
+  // Apply all notes at once (batch)
+  if (note1Col > 0 && note1Updates.length > 0) {
+    sheet.getRange(2, note1Col, note1Updates.length, 1).setValues(note1Updates);
+  }
+  if (note2Col > 0 && note2Updates.length > 0) {
+    sheet.getRange(2, note2Col, note2Updates.length, 1).setValues(note2Updates);
   }
   
   Logger.log(`  Restored data for ${restoredCount} deals`);
