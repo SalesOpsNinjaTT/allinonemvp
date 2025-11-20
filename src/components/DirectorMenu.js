@@ -225,7 +225,7 @@ function applyDirectorFlag(flag, flagName, color) {
     
     // Success message
     const action = flag === '' ? 'cleared' : `marked as ${flagName}`;
-    ui.toast(`✅ Deal ${action}: ${dealName}`, 'Success', 3);
+    ss.toast(`✅ Deal ${action}: ${dealName}`, 'Success', 3);
     
     Logger.log(`[Director Flag] Row ${selectedRow}: ${dealName} → ${flag} ${flagName} "${note}"`);
     
