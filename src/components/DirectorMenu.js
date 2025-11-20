@@ -72,6 +72,55 @@ function installOnOpenTrigger() {
 }
 
 /**
+ * Interactive director action picker (for button assignment)
+ * Shows popup with action choices
+ */
+function directorActionPicker() {
+  try {
+    const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    const ui = SpreadsheetApp.getUi();
+    
+    // Prompt for action
+    const response = ui.alert(
+      '🎯 Director Actions',
+      'Select an action for the currently selected deal:\n\n' +
+      '• Hot (1) - Low-hanging fruit 🟢\n' +
+      '• Cold (2) - Dead deal 🔴\n' +
+      '• Attention (3) - Needs investigation 🟡\n' +
+      '• Clear (4) - Remove flag ⚪\n\n' +
+      'Enter 1, 2, 3, or 4:',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (response === ui.Button.CANCEL) {
+      return;
+    }
+    
+    const choice = ui.prompt('Enter action number (1-4):').getResponseText().trim();
+    
+    switch(choice) {
+      case '1':
+        markAsHot();
+        break;
+      case '2':
+        markAsCold();
+        break;
+      case '3':
+        markAsAttention();
+        break;
+      case '4':
+        clearFlag();
+        break;
+      default:
+        ui.alert('Invalid choice. Please enter 1, 2, 3, or 4.');
+    }
+    
+  } catch (error) {
+    Logger.log(`[Director Action Picker] Error: ${error.message}`);
+  }
+}
+
+/**
  * Mark selected deal as Hot (low-hanging fruit)
  */
 function markAsHot() {
