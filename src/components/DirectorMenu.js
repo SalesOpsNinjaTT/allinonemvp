@@ -332,9 +332,13 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
         pipelineSheet.getRange(rowIndex, priorityCol).setValue(flag);
         pipelineSheet.getRange(rowIndex, noteCol).setValue(note);
         
-        // Set row background
+        // Set row background (AE sheet has fewer columns than Director Hub - no Owner column)
+        const aeRowBackground = [];
+        for (let j = 0; j < headers.length; j++) {
+          aeRowBackground.push(rowBackground[0]); // Use first color (they're all the same)
+        }
         const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, headers.length);
-        rowRange.setBackgrounds([rowBackground]);
+        rowRange.setBackgrounds([aeRowBackground]);
         
         Logger.log(`[Instant Sync] ✅ Synced to ${ownerName}'s sheet (row ${rowIndex})`);
         
