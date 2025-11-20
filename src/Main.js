@@ -25,7 +25,8 @@ function generateAllDashboards() {
     
     // 1.5. Update Director Hub (team-wide view)
     Logger.log(`\n=== Updating Director Hub ===`);
-    const hubResult = updateDirectorHub(SpreadsheetApp.openById(CONTROL_SHEET_ID), salespeople);
+    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    const hubResult = updateDirectorHub(controlSheet, salespeople);
     if (hubResult.success) {
       Logger.log(`✅ Director Hub: ${hubResult.dealCount} deals (${hubResult.duration}s)`);
     } else {
@@ -68,6 +69,10 @@ function generateAllDashboards() {
         Logger.log(`   Stack: ${e.stack}`);
       }
     });
+    
+    // 3. Sync director flags from Director Hub to AE sheets
+    Logger.log(`\n=== Syncing Director Flags to AE Sheets ===`);
+    syncDirectorFlagsToAESheets(controlSheet, salespeople);
     
     // 4. Summary
     const endTime = new Date();
