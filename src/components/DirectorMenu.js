@@ -6,10 +6,8 @@
  * 
  * Note: TAB_DIRECTOR_HUB is defined in DirectorHub.js
  * Note: TAB_PIPELINE is defined in SheetProvisioner.js
+ * Note: CONTROL_SHEET_ID is defined in ConfigManager.js
  */
-
-// Control Sheet ID
-const CONTROL_SHEET_ID = '1-zipx1vWfjYaMjgl7BbqfCVjl8NZch9DMk5T-DRfnnQ';
 
 // Flag colors for row backgrounds
 const FLAG_COLORS = {

@@ -5,10 +5,9 @@
  * - Control Sheet configuration loading
  * - Self-provisioning of individual sheets
  * - Ready for component integration
+ * 
+ * Note: CONTROL_SHEET_ID is defined in ConfigManager.js
  */
-
-// Control Sheet ID
-const CONTROL_SHEET_ID = '1-zipx1vWfjYaMjgl7BbqfCVjl8NZch9DMk5T-DRfnnQ';
 
 /**
  * Main function to generate/update all salesperson dashboards
