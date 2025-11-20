@@ -3,11 +3,10 @@
  * 
  * Custom menu for directors to flag deals in Director Hub
  * Provides Hot/Cold/Attention flags with optional notes
+ * 
+ * Note: TAB_DIRECTOR_HUB is defined in DirectorHub.js
+ * Note: TAB_PIPELINE is defined in SheetProvisioner.js
  */
-
-// Tab names
-const TAB_DIRECTOR_HUB = '👔 Director Hub';
-const TAB_PIPELINE = '📊 Pipeline Review';
 
 // Flag colors for row backgrounds
 const FLAG_COLORS = {
