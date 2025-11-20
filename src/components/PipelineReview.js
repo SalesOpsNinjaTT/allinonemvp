@@ -85,6 +85,14 @@ function getPipelineReviewProperties() {
     properties.push('hubspot_owner_id');
   }
   
+  // Add GTC filter properties (for filtering, not displayed)
+  if (!properties.includes('ability_to_pay')) {
+    properties.push('ability_to_pay');
+  }
+  if (!properties.includes('warm_prospects')) {
+    properties.push('warm_prospects');
+  }
+  
   return properties;
 }
 

@@ -102,7 +102,20 @@ function fetchDealsByOwner(ownerEmailOrId, properties, options = {}) {
     } while (after);
     
     Logger.log(`  Total deals fetched: ${allDeals.length}`);
-    return allDeals;
+    
+    // Apply client-side GTC filter (ability_to_pay >= 3 AND warm_prospects >= 3)
+    const gtcDeals = allDeals.filter(deal => {
+      const abilityToPay = extractNumericProperty(deal, 'ability_to_pay');
+      const warmProspects = extractNumericProperty(deal, 'warm_prospects');
+      
+      // Both must be >= 3 (GTC = "Good To Close")
+      // If value is empty/null, it's not GTC
+      return (typeof abilityToPay === 'number' && abilityToPay >= 3) &&
+             (typeof warmProspects === 'number' && warmProspects >= 3);
+    });
+    
+    Logger.log(`  GTC-filtered deals: ${gtcDeals.length} (from ${allDeals.length} total)`);
+    return gtcDeals;
     
   } catch (error) {
     Logger.log(`Error fetching deals for ${ownerEmailOrId}: ${error.message}`);
@@ -157,6 +170,20 @@ function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
     propertyName: 'closed_status',
     operator: 'NEQ',
     value: 'Closed lost (please specify the reason)'
+  });
+  
+  // Filter 5: GTC Filter - Ability to Pay >= 3 (between 3-5)
+  filters.push({
+    propertyName: 'ability_to_pay',
+    operator: 'GTE',
+    value: '3'
+  });
+  
+  // Filter 6: GTC Filter - Warm Prospects >= 3 (between 3-5)
+  filters.push({
+    propertyName: 'warm_prospects',
+    operator: 'GTE',
+    value: '3'
   });
   
   const filterGroups = [{ filters: filters }];
