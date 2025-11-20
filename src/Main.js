@@ -7,6 +7,9 @@
  * - Ready for component integration
  */
 
+// Control Sheet ID
+const CONTROL_SHEET_ID = '1-zipx1vWfjYaMjgl7BbqfCVjl8NZch9DMk5T-DRfnnQ';
+
 /**
  * Main function to generate/update all salesperson dashboards
  * Run this from Control Sheet
