@@ -254,22 +254,14 @@ function applyDirectorFlag(flag, flagName, color) {
  */
 function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
   try {
-    Logger.log(`[Instant Sync] Syncing flag for "${dealName}" to ${ownerName}'s sheet...`);
-    
     // Read config directly from Control Sheet
     const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
     const configSheet = controlSheet.getSheetByName('👥 Salespeople Config');
     
-    if (!configSheet) {
-      Logger.log(`[Instant Sync] Config sheet not found`);
-      return;
-    }
+    if (!configSheet) return;
     
     const lastRow = configSheet.getLastRow();
-    if (lastRow < 2) {
-      Logger.log(`[Instant Sync] No salespeople in config`);
-      return;
-    }
+    if (lastRow < 2) return;
     
     // Read all config data
     const configData = configSheet.getRange(2, 1, lastRow - 1, 4).getValues();
@@ -286,27 +278,16 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
       }
     }
     
-    if (!aeSheetId) {
-      Logger.log(`[Instant Sync] No sheet ID found for ${ownerName}`);
-      return;
-    }
-    
-    Logger.log(`[Instant Sync] Found sheet ID: ${aeSheetId}`);
+    if (!aeSheetId) return;
     
     // Open AE's sheet
     const aeSheet = SpreadsheetApp.openById(aeSheetId);
     const pipelineSheet = aeSheet.getSheetByName('📊 Pipeline Review');
     
-    if (!pipelineSheet) {
-      Logger.log(`[Instant Sync] No Pipeline Review tab for ${ownerName}`);
-      return;
-    }
+    if (!pipelineSheet) return;
     
     const aeLastRow = pipelineSheet.getLastRow();
-    if (aeLastRow < 2) {
-      Logger.log(`[Instant Sync] No deals in ${ownerName}'s sheet`);
-      return;
-    }
+    if (aeLastRow < 2) return;
     
     // Find the deal in AE's sheet
     const headers = pipelineSheet.getRange(1, 1, 1, pipelineSheet.getLastColumn()).getValues()[0];
@@ -314,10 +295,7 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
     const priorityCol = headers.indexOf('Director Priority') + 1;
     const noteCol = headers.indexOf('Director Note') + 1;
     
-    if (dealNameCol === 0 || priorityCol === 0 || noteCol === 0) {
-      Logger.log(`[Instant Sync] Missing columns in ${ownerName}'s sheet`);
-      return;
-    }
+    if (dealNameCol === 0 || priorityCol === 0 || noteCol === 0) return;
     
     const dealNames = pipelineSheet.getRange(2, dealNameCol, aeLastRow - 1, 1).getValues();
     
@@ -326,38 +304,24 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
       if (dealNames[i][0] === dealName) {
         const rowIndex = i + 2;
         
-        Logger.log(`[Instant Sync] Found deal at row ${rowIndex}, applying flag...`);
-        
-        // Set flag and note
-        pipelineSheet.getRange(rowIndex, priorityCol).setValue(flag);
-        pipelineSheet.getRange(rowIndex, noteCol).setValue(note);
-        
-        // Set row background (AE sheet has fewer columns than Director Hub - no Owner column)
-        const aeRowBackground = [];
-        for (let j = 0; j < headers.length; j++) {
-          aeRowBackground.push(rowBackground[0]); // Use first color (they're all the same)
-        }
-        const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, headers.length);
-        rowRange.setBackgrounds([aeRowBackground]);
-        
-        Logger.log(`[Instant Sync] ✅ Synced to ${ownerName}'s sheet (row ${rowIndex})`);
+        // FAST: Set flag and note only (skip background for speed)
+        // Background will be synced on next full refresh
+        pipelineSheet.getRange(rowIndex, priorityCol, 1, 2)
+          .setValues([[flag, note]]);
         
         // Show confirmation in UI
         SpreadsheetApp.openById(CONTROL_SHEET_ID).toast(
-          `Flag synced to ${ownerName}'s sheet`, 
-          'Sync Complete', 
-          2
+          `✅ ${ownerName}'s sheet updated`, 
+          'Synced', 
+          1
         );
         
         return;
       }
     }
     
-    Logger.log(`[Instant Sync] Deal "${dealName}" not found in ${ownerName}'s sheet (searched ${dealNames.length} deals)`);
-    
   } catch (error) {
-    Logger.log(`[Instant Sync] Error: ${error.message}`);
-    Logger.log(`[Instant Sync] Stack: ${error.stack}`);
+    // Silent fail for speed - errors will show in full refresh logs
   }
 }
 
