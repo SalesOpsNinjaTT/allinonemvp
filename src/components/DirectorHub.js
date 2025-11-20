@@ -111,12 +111,10 @@ function buildDirectorHubDataArray(deals) {
   const urlMap = {};
   const dealIdMap = {};
   
-  // Headers - add Owner, Director Priority, and Director Note
+  // Headers - add Owner at the beginning
   const headers = [
     'Owner',
-    ...getPipelineReviewHeaders(),
-    'Director Priority',
-    'Director Note'
+    ...getPipelineReviewHeaders()
   ];
   dataArray.push(headers);
   
@@ -159,9 +157,10 @@ function buildDirectorHubDataArray(deals) {
       row.push('');
     });
     
-    // Director columns (initially empty)
-    row.push(''); // Director Priority
-    row.push(''); // Director Note
+    // Director fields (initially empty)
+    DIRECTOR_FIELDS.forEach(() => {
+      row.push('');
+    });
     
     dataArray.push(row);
   });
