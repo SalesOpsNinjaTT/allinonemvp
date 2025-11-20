@@ -364,6 +364,25 @@ function applyPipelineFormatting(sheet, dataRowCount) {
     sheet.autoResizeColumn(col);
   }
   
+  // Set width and text wrapping for specific columns
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const whyNotPurchaseCol = headers.indexOf('Why Not Purchase Today') + 1;
+  const callsHistoryCol = headers.indexOf('calls history') + 1;
+  
+  if (whyNotPurchaseCol > 0) {
+    sheet.setColumnWidth(whyNotPurchaseCol, 250); // 250 pixels width
+    if (dataRowCount > 0) {
+      sheet.getRange(2, whyNotPurchaseCol, dataRowCount, 1).setWrap(true);
+    }
+  }
+  
+  if (callsHistoryCol > 0) {
+    sheet.setColumnWidth(callsHistoryCol, 250); // 250 pixels width
+    if (dataRowCount > 0) {
+      sheet.getRange(2, callsHistoryCol, dataRowCount, 1).setWrap(true);
+    }
+  }
+  
   // Apply conditional formatting to call quality columns
   applyCallQualityFormatting(sheet, dataRowCount);
 }
