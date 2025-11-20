@@ -215,13 +215,22 @@ function applyDirectorFlag(flag, flagName, color) {
       note = response.getResponseText();
     }
     
-    // Apply flag and note
+    // Apply flag and note to Director Hub
     sheet.getRange(selectedRow, priorityCol).setValue(flag);
     sheet.getRange(selectedRow, noteCol).setValue(note);
     
-    // Apply background color to entire row
+    // Apply background color to entire row in Director Hub
     const rowRange = sheet.getRange(selectedRow, 1, 1, headers.length);
-    rowRange.setBackground(color);
+    const rowBackground = [];
+    for (let i = 0; i < headers.length; i++) {
+      rowBackground.push(color);
+    }
+    rowRange.setBackgrounds([rowBackground]);
+    
+    // Immediately sync to AE's sheet
+    const ownerCol = headers.indexOf('Owner') + 1;
+    const ownerName = sheet.getRange(selectedRow, ownerCol).getValue();
+    syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground);
     
     // Success message
     const action = flag === '' ? 'cleared' : `marked as ${flagName}`;
@@ -232,6 +241,79 @@ function applyDirectorFlag(flag, flagName, color) {
   } catch (error) {
     Logger.log(`[Director Flag] Error: ${error.message}`);
     SpreadsheetApp.getUi().alert('❌ Error', `Failed to apply flag: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Syncs a single deal flag to the AE's sheet immediately
+ * @param {string} dealName - The deal name to sync
+ * @param {string} ownerName - The owner's name
+ * @param {string} flag - The flag emoji
+ * @param {string} note - The director's note
+ * @param {Array} rowBackground - The background colors for the row
+ */
+function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
+  try {
+    Logger.log(`[Instant Sync] Syncing flag for "${dealName}" to ${ownerName}'s sheet...`);
+    
+    // Load config to get AE's sheet ID
+    const configManager = new ConfigManager();
+    const config = configManager.getSalespeopleConfig();
+    
+    // Find the AE
+    const ae = config.find(person => person.name === ownerName);
+    if (!ae || !ae.sheetId) {
+      Logger.log(`[Instant Sync] No sheet found for ${ownerName}`);
+      return;
+    }
+    
+    // Open AE's sheet
+    const aeSheet = SpreadsheetApp.openById(ae.sheetId);
+    const pipelineSheet = aeSheet.getSheetByName('📊 Pipeline Review');
+    
+    if (!pipelineSheet) {
+      Logger.log(`[Instant Sync] No Pipeline Review tab for ${ownerName}`);
+      return;
+    }
+    
+    const lastRow = pipelineSheet.getLastRow();
+    if (lastRow < 2) return;
+    
+    // Find the deal in AE's sheet
+    const headers = pipelineSheet.getRange(1, 1, 1, pipelineSheet.getLastColumn()).getValues()[0];
+    const dealNameCol = headers.indexOf('Deal Name') + 1;
+    const priorityCol = headers.indexOf('Director Priority') + 1;
+    const noteCol = headers.indexOf('Director Note') + 1;
+    
+    if (dealNameCol === 0 || priorityCol === 0 || noteCol === 0) {
+      Logger.log(`[Instant Sync] Missing columns in ${ownerName}'s sheet`);
+      return;
+    }
+    
+    const dealNames = pipelineSheet.getRange(2, dealNameCol, lastRow - 1, 1).getValues();
+    
+    // Find matching deal
+    for (let i = 0; i < dealNames.length; i++) {
+      if (dealNames[i][0] === dealName) {
+        const rowIndex = i + 2;
+        
+        // Set flag and note
+        pipelineSheet.getRange(rowIndex, priorityCol).setValue(flag);
+        pipelineSheet.getRange(rowIndex, noteCol).setValue(note);
+        
+        // Set row background
+        const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, headers.length);
+        rowRange.setBackgrounds([rowBackground]);
+        
+        Logger.log(`[Instant Sync] ✅ Synced to ${ownerName}'s sheet`);
+        return;
+      }
+    }
+    
+    Logger.log(`[Instant Sync] Deal "${dealName}" not found in ${ownerName}'s sheet`);
+    
+  } catch (error) {
+    Logger.log(`[Instant Sync] Error: ${error.message}`);
   }
 }
 
