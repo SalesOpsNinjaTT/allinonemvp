@@ -18,16 +18,56 @@ const FLAG_COLORS = {
 
 /**
  * Creates custom menu when Control Sheet is opened
+ * This is called by an installable trigger (not simple trigger)
  */
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('🎯 Directives')
-    .addItem('🟢 Mark as Hot', 'markAsHot')
-    .addItem('🔴 Mark as Cold', 'markAsCold')
-    .addItem('🟡 Mark as Needs Attention', 'markAsAttention')
-    .addSeparator()
-    .addItem('⚪ Clear Flag', 'clearFlag')
-    .addToUi();
+  try {
+    const ui = SpreadsheetApp.getUi();
+    ui.createMenu('🎯 Directives')
+      .addItem('🟢 Mark as Hot', 'markAsHot')
+      .addItem('🔴 Mark as Cold', 'markAsCold')
+      .addItem('🟡 Mark as Needs Attention', 'markAsAttention')
+      .addSeparator()
+      .addItem('⚪ Clear Flag', 'clearFlag')
+      .addToUi();
+  } catch (error) {
+    Logger.log(`[onOpen] Error: ${error.message}`);
+  }
+}
+
+/**
+ * Install the onOpen trigger for the Control Sheet
+ * Run this ONCE to set up the menu trigger
+ */
+function installOnOpenTrigger() {
+  try {
+    Logger.log('Installing onOpen trigger...');
+    
+    // Delete existing onOpen triggers
+    const existingTriggers = ScriptApp.getProjectTriggers();
+    existingTriggers.forEach(trigger => {
+      if (trigger.getHandlerFunction() === 'onOpen') {
+        ScriptApp.deleteTrigger(trigger);
+        Logger.log('  Deleted existing onOpen trigger');
+      }
+    });
+    
+    // Install new trigger for the Control Sheet
+    const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    ScriptApp.newTrigger('onOpen')
+      .forSpreadsheet(ss)
+      .onOpen()
+      .create();
+    
+    Logger.log('✅ Installed onOpen trigger');
+    Logger.log('   Close and reopen the Control Sheet to see the menu');
+    
+    return 'Success! Close and reopen the Control Sheet.';
+    
+  } catch (error) {
+    Logger.log(`❌ Failed to install trigger: ${error.message}`);
+    throw error;
+  }
 }
 
 /**
