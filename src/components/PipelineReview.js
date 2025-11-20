@@ -55,6 +55,12 @@ const MANUAL_FIELDS = [
   { header: 'Note 2', editable: true, preserve: true }
 ];
 
+// Director columns (set by director, synced from Director Hub)
+const DIRECTOR_FIELDS = [
+  { header: 'Director Priority', preserve: true },
+  { header: 'Director Note', preserve: true }
+];
+
 /**
  * Gets all enabled properties to fetch from HubSpot
  * @returns {Array<string>} Array of property names
@@ -101,6 +107,11 @@ function getPipelineReviewHeaders() {
   
   // Manual fields
   MANUAL_FIELDS.forEach(field => {
+    headers.push(field.header);
+  });
+  
+  // Director fields
+  DIRECTOR_FIELDS.forEach(field => {
     headers.push(field.header);
   });
   
@@ -235,6 +246,11 @@ function buildPipelineDataArray(deals) {
     
     // Manual fields (blank initially, will be restored if preserved)
     MANUAL_FIELDS.forEach(() => {
+      row.push('');
+    });
+    
+    // Director fields (blank initially, will be synced from Director Hub)
+    DIRECTOR_FIELDS.forEach(() => {
       row.push('');
     });
     
@@ -393,9 +409,11 @@ function capturePreservedData(sheet) {
   }
   
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const dealNameCol = headers.indexOf('Deal Name') + 1; // Use Deal Name for matching
+  const dealNameCol = headers.indexOf('Deal Name') + 1;
   const note1Col = headers.indexOf('Note 1') + 1;
   const note2Col = headers.indexOf('Note 2') + 1;
+  const dirPriorityCol = headers.indexOf('Director Priority') + 1;
+  const dirNoteCol = headers.indexOf('Director Note') + 1;
   
   // Read all data
   const dataRange = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn());
@@ -404,7 +422,7 @@ function capturePreservedData(sheet) {
   const fontColors = dataRange.getFontColors();
   const fontWeights = dataRange.getFontWeights();
   
-  // Capture by Deal Name (temporary key until we get Deal IDs)
+  // Capture by Deal Name
   for (let i = 0; i < values.length; i++) {
     const dealName = dealNameCol > 0 ? values[i][dealNameCol - 1] : '';
     
@@ -412,6 +430,8 @@ function capturePreservedData(sheet) {
       preserved[dealName.toString()] = {
         note1: note1Col > 0 ? values[i][note1Col - 1] : '',
         note2: note2Col > 0 ? values[i][note2Col - 1] : '',
+        directorPriority: dirPriorityCol > 0 ? values[i][dirPriorityCol - 1] : '',
+        directorNote: dirNoteCol > 0 ? values[i][dirNoteCol - 1] : '',
         backgrounds: backgrounds[i],
         fontColors: fontColors[i],
         fontWeights: fontWeights[i]
@@ -444,40 +464,52 @@ function restorePreservedData(sheet, preserved, dealIdMap) {
   const dealNameCol = headers.indexOf('Deal Name') + 1;
   const note1Col = headers.indexOf('Note 1') + 1;
   const note2Col = headers.indexOf('Note 2') + 1;
-  const currentColCount = headers.length;
+  const dirPriorityCol = headers.indexOf('Director Priority') + 1;
+  const dirNoteCol = headers.indexOf('Director Note') + 1;
   
   // Read all deal names at once
   const dealNames = sheet.getRange(2, dealNameCol, lastRow - 1, 1).getValues();
   
-  // Prepare batch updates for notes
+  // Prepare batch updates
   const note1Updates = [];
   const note2Updates = [];
+  const dirPriorityUpdates = [];
+  const dirNoteUpdates = [];
   let restoredCount = 0;
   
   // Build updates array
   for (let i = 0; i < dealNames.length; i++) {
     const dealName = dealNames[i][0];
-    const rowIndex = i + 2; // +2 for header and 0-based index
     
     if (dealName && preserved[dealName.toString()]) {
       const data = preserved[dealName.toString()];
       
       note1Updates.push([data.note1 || '']);
       note2Updates.push([data.note2 || '']);
+      dirPriorityUpdates.push([data.directorPriority || '']);
+      dirNoteUpdates.push([data.directorNote || '']);
       
       restoredCount++;
     } else {
       note1Updates.push(['']);
       note2Updates.push(['']);
+      dirPriorityUpdates.push(['']);
+      dirNoteUpdates.push(['']);
     }
   }
   
-  // Apply all notes at once (batch)
+  // Apply all updates at once (batch)
   if (note1Col > 0 && note1Updates.length > 0) {
     sheet.getRange(2, note1Col, note1Updates.length, 1).setValues(note1Updates);
   }
   if (note2Col > 0 && note2Updates.length > 0) {
     sheet.getRange(2, note2Col, note2Updates.length, 1).setValues(note2Updates);
+  }
+  if (dirPriorityCol > 0 && dirPriorityUpdates.length > 0) {
+    sheet.getRange(2, dirPriorityCol, dirPriorityUpdates.length, 1).setValues(dirPriorityUpdates);
+  }
+  if (dirNoteCol > 0 && dirNoteUpdates.length > 0) {
+    sheet.getRange(2, dirNoteCol, dirNoteUpdates.length, 1).setValues(dirNoteUpdates);
   }
   
   Logger.log(`  Restored data for ${restoredCount} deals`);
