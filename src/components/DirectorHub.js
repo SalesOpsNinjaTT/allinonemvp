@@ -129,8 +129,9 @@ function buildDirectorHubDataArray(deals) {
     // Owner name (first column)
     row.push(deal.ownerName || '');
     
-    // Core fields
-    CORE_FIELDS.forEach(field => {
+    // First 5 core fields (B-F)
+    for (let i = 0; i < 5 && i < CORE_FIELDS.length; i++) {
+      const field = CORE_FIELDS[i];
       if (field.property === 'dealname') {
         const dealName = extractDealProperty(deal, field.property);
         row.push(dealName);
@@ -145,7 +146,31 @@ function buildDirectorHubDataArray(deals) {
       } else {
         row.push(extractDealProperty(deal, field.property));
       }
+    }
+    
+    // Director fields at positions 7-8 (G-H) - initially empty
+    DIRECTOR_FIELDS.forEach(() => {
+      row.push('');
     });
+    
+    // Remaining core fields (from position 6 onwards)
+    for (let i = 5; i < CORE_FIELDS.length; i++) {
+      const field = CORE_FIELDS[i];
+      if (field.property === 'dealname') {
+        const dealName = extractDealProperty(deal, field.property);
+        row.push(dealName);
+        urlMap[rowIndex] = buildDealUrl(deal.id);
+      } else if (field.property === 'dealstage' && field.useMapping) {
+        const stageId = extractDealProperty(deal, field.property);
+        row.push(STAGE_MAP[stageId] || stageId);
+      } else if (field.type === 'date') {
+        row.push(extractDateProperty(deal, field.property));
+      } else if (field.enabled === false) {
+        row.push('');
+      } else {
+        row.push(extractDealProperty(deal, field.property));
+      }
+    }
     
     // Call quality fields
     CALL_QUALITY_FIELDS.forEach(field => {
@@ -154,11 +179,6 @@ function buildDirectorHubDataArray(deals) {
     
     // Manual fields (Note 1, Note 2)
     MANUAL_FIELDS.forEach(() => {
-      row.push('');
-    });
-    
-    // Director fields (initially empty)
-    DIRECTOR_FIELDS.forEach(() => {
       row.push('');
     });
     

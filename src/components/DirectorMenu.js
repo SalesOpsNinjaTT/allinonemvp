@@ -445,9 +445,11 @@ function syncDirectorFlagsToAESheets(controlSheet, salespeople) {
             pipelineSheet.getRange(rowIndex, aePriorityCol).setValue(flag.priority);
             pipelineSheet.getRange(rowIndex, aeNoteCol).setValue(flag.note);
             
-            // Set row background
+            // Set row background (remove Owner column - first element)
+            // Director Hub has Owner column, AE sheets don't
+            const aeBackground = flag.background.slice(1); // Skip first column (Owner)
             const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, aeHeaders.length);
-            rowRange.setBackgrounds([flag.background]);
+            rowRange.setBackgrounds([aeBackground]);
             
             syncedForAE++;
           }
