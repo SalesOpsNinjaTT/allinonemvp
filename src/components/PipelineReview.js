@@ -95,10 +95,20 @@ function getPipelineReviewProperties() {
 function getPipelineReviewHeaders() {
   const headers = [];
   
-  // Core fields
-  CORE_FIELDS.forEach(field => {
+  // First 5 core fields (A-E)
+  for (let i = 0; i < 5 && i < CORE_FIELDS.length; i++) {
+    headers.push(CORE_FIELDS[i].header);
+  }
+  
+  // Director fields at positions 6-7 (F-G)
+  DIRECTOR_FIELDS.forEach(field => {
     headers.push(field.header);
   });
+  
+  // Remaining core fields (from position 6 onwards)
+  for (let i = 5; i < CORE_FIELDS.length; i++) {
+    headers.push(CORE_FIELDS[i].header);
+  }
   
   // Call quality fields
   CALL_QUALITY_FIELDS.forEach(field => {
@@ -107,11 +117,6 @@ function getPipelineReviewHeaders() {
   
   // Manual fields
   MANUAL_FIELDS.forEach(field => {
-    headers.push(field.header);
-  });
-  
-  // Director fields
-  DIRECTOR_FIELDS.forEach(field => {
     headers.push(field.header);
   });
   
@@ -216,8 +221,9 @@ function buildPipelineDataArray(deals) {
     // Store Deal ID for preservation (not displayed in sheet)
     dealIdMap[rowIndex] = deal.id;
     
-    // Core fields
-    CORE_FIELDS.forEach(field => {
+    // First 5 core fields (A-E)
+    for (let i = 0; i < 5 && i < CORE_FIELDS.length; i++) {
+      const field = CORE_FIELDS[i];
       if (field.property === 'dealname') {
         // Deal Name - will be hyperlinked
         const dealName = extractDealProperty(deal, field.property);
@@ -237,7 +243,36 @@ function buildPipelineDataArray(deals) {
         // Regular text field
         row.push(extractDealProperty(deal, field.property));
       }
+    }
+    
+    // Director fields at positions 6-7 (F-G) - blank initially, synced from Director Hub
+    DIRECTOR_FIELDS.forEach(() => {
+      row.push('');
     });
+    
+    // Remaining core fields (from position 6 onwards)
+    for (let i = 5; i < CORE_FIELDS.length; i++) {
+      const field = CORE_FIELDS[i];
+      if (field.property === 'dealname') {
+        // Deal Name - will be hyperlinked
+        const dealName = extractDealProperty(deal, field.property);
+        row.push(dealName);
+        urlMap[rowIndex] = buildDealUrl(deal.id);
+      } else if (field.property === 'dealstage' && field.useMapping) {
+        // Stage - map ID to name
+        const stageId = extractDealProperty(deal, field.property);
+        row.push(STAGE_MAP[stageId] || stageId);
+      } else if (field.type === 'date') {
+        // Date fields
+        row.push(extractDateProperty(deal, field.property));
+      } else if (field.enabled === false) {
+        // Disabled field (Next Task Name) - leave blank
+        row.push('');
+      } else {
+        // Regular text field
+        row.push(extractDealProperty(deal, field.property));
+      }
+    }
     
     // Call quality fields (numeric)
     CALL_QUALITY_FIELDS.forEach(field => {
@@ -246,11 +281,6 @@ function buildPipelineDataArray(deals) {
     
     // Manual fields (blank initially, will be restored if preserved)
     MANUAL_FIELDS.forEach(() => {
-      row.push('');
-    });
-    
-    // Director fields (blank initially, will be synced from Director Hub)
-    DIRECTOR_FIELDS.forEach(() => {
       row.push('');
     });
     
