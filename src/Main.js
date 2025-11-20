@@ -58,9 +58,16 @@ function generateAllDashboards() {
           Logger.log(`  ❌ Pipeline Review failed: ${pipelineResult.error}`);
         }
         
+        // Update Enrollment Tracker tab
+        const enrollmentResult = updateEnrollmentTracker(sheet, person);
+        if (enrollmentResult.success) {
+          Logger.log(`  ✅ Enrollment Tracker: ${enrollmentResult.enrollmentCount} enrollments`);
+        } else {
+          Logger.log(`  ❌ Enrollment Tracker failed: ${enrollmentResult.error}`);
+        }
+        
         // TODO: Phase 3 - Update Bonus Calculation tab
-        // TODO: Phase 4 - Update Enrollment Tracker tab
-        // TODO: Phase 5 - Update Operational Metrics tab
+        // TODO: Phase 4 - Update Operational Metrics tab
         
         Logger.log(`✅ ${person.name} - SUCCESS`);
         processedCount++;

@@ -124,6 +124,67 @@ function fetchDealsByOwner(ownerEmailOrId, properties, options = {}) {
 }
 
 /**
+ * Fetches enrollment deals for a specific owner
+ * @param {string} ownerEmailOrId - Email or User ID of the deal owner
+ * @param {Array<string>} properties - Array of property names to fetch
+ * @param {Object} options - Optional filters (hubspotUserId, months, etc.)
+ * @returns {Array<Object>} Array of enrollment deal objects
+ */
+function fetchEnrollmentDeals(ownerEmailOrId, properties, options = {}) {
+  try {
+    Logger.log(`Fetching enrollment deals for ${ownerEmailOrId}...`);
+    
+    let ownerId;
+    
+    // Check if we have a direct User ID in options
+    if (options.hubspotUserId && options.hubspotUserId !== '') {
+      ownerId = options.hubspotUserId.toString();
+      Logger.log(`  Using provided User ID: ${ownerId}`);
+    } else {
+      // Fall back to email lookup (requires API permission)
+      ownerId = getOwnerIdByEmail(ownerEmailOrId);
+      if (!ownerId) {
+        Logger.log(`  Warning: Owner not found for ${ownerEmailOrId}, returning 0 deals`);
+        return [];
+      }
+      Logger.log(`  Looked up User ID: ${ownerId}`);
+    }
+    
+    const accessToken = getHubSpotAccessToken();
+    const allDeals = [];
+    let after = null;
+    let pageCount = 0;
+    
+    do {
+      pageCount++;
+      Logger.log(`  Page ${pageCount}...`);
+      
+      const response = fetchEnrollmentDealsPage(accessToken, properties, ownerId, after, options);
+      
+      if (response.results && response.results.length > 0) {
+        allDeals.push(...response.results);
+      }
+      
+      after = response.paging && response.paging.next ? response.paging.next.after : null;
+      
+      // Safety limit
+      if (allDeals.length >= HUBSPOT_API_CONFIG.MAX_RESULTS) {
+        Logger.log(`  Reached maximum limit of ${HUBSPOT_API_CONFIG.MAX_RESULTS}`);
+        break;
+      }
+      
+    } while (after);
+    
+    Logger.log(`  Total enrollment deals fetched: ${allDeals.length}`);
+    return allDeals;
+    
+  } catch (error) {
+    Logger.log(`Error fetching enrollment deals for ${ownerEmailOrId}: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Fetches a single page of deals from HubSpot
  * @param {string} accessToken - HubSpot access token
  * @param {Array<string>} properties - Properties to fetch
@@ -184,6 +245,93 @@ function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
     propertyName: 'warm_prospects',
     operator: 'GTE',
     value: '3'
+  });
+  
+  const filterGroups = [{ filters: filters }];
+  
+  const payload = {
+    properties: properties,
+    limit: HUBSPOT_API_CONFIG.DEFAULT_BATCH_SIZE
+  };
+  
+  if (filterGroups.length > 0) {
+    payload.filterGroups = filterGroups;
+  }
+  
+  if (after) {
+    payload.after = after;
+  }
+  
+  const options_fetch = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch(url, options_fetch);
+  const statusCode = response.getResponseCode();
+  const responseText = response.getContentText();
+  
+  if (statusCode !== 200) {
+    Logger.log(`HubSpot API Error (${statusCode}): ${responseText}`);
+    throw new Error(`HubSpot API error: ${statusCode}`);
+  }
+  
+  return JSON.parse(responseText);
+}
+
+/**
+ * Fetches a single page of enrollment deals from HubSpot
+ * @param {string} accessToken - HubSpot access token
+ * @param {Array<string>} properties - Properties to fetch
+ * @param {string} ownerId - Owner ID filter (numeric)
+ * @param {string} after - Pagination cursor
+ * @param {Object} options - Additional filter options
+ * @returns {Object} API response object
+ */
+function fetchEnrollmentDealsPage(accessToken, properties, ownerId, after, options = {}) {
+  const url = HUBSPOT_API_CONFIG.BASE_URL + HUBSPOT_API_CONFIG.ENDPOINTS.DEALS_SEARCH;
+  
+  // Build filters (all filters in one group = AND logic)
+  const filters = [];
+  
+  // Filter 1: Owner ID
+  if (ownerId) {
+    filters.push({
+      propertyName: 'hubspot_owner_id',
+      operator: 'EQ',
+      value: ownerId.toString()
+    });
+  }
+  
+  // Filter 2: Deal Stage (Partnership Confirmed = 90284262)
+  filters.push({
+    propertyName: 'dealstage',
+    operator: 'EQ',
+    value: '90284262'
+  });
+  
+  // Filter 3: Closed Status (Closed won)
+  filters.push({
+    propertyName: 'closed_status',
+    operator: 'EQ',
+    value: 'Closed won'
+  });
+  
+  // Filter 4: Close Date - Current month and last month
+  // Calculate first day of last month
+  const now = new Date();
+  const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  
+  filters.push({
+    propertyName: 'closedate',
+    operator: 'GTE',
+    value: firstDayOfLastMonth.getTime().toString()
   });
   
   const filterGroups = [{ filters: filters }];
