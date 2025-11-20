@@ -256,19 +256,45 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
   try {
     Logger.log(`[Instant Sync] Syncing flag for "${dealName}" to ${ownerName}'s sheet...`);
     
-    // Load config to get AE's sheet ID
-    const configManager = new ConfigManager();
-    const config = configManager.getSalespeopleConfig();
+    // Read config directly from Control Sheet
+    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    const configSheet = controlSheet.getSheetByName('👥 Salespeople Config');
     
-    // Find the AE
-    const ae = config.find(person => person.name === ownerName);
-    if (!ae || !ae.sheetId) {
-      Logger.log(`[Instant Sync] No sheet found for ${ownerName}`);
+    if (!configSheet) {
+      Logger.log(`[Instant Sync] Config sheet not found`);
       return;
     }
     
+    const lastRow = configSheet.getLastRow();
+    if (lastRow < 2) {
+      Logger.log(`[Instant Sync] No salespeople in config`);
+      return;
+    }
+    
+    // Read all config data
+    const configData = configSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    
+    // Find the AE by name
+    let aeSheetId = null;
+    for (let i = 0; i < configData.length; i++) {
+      const name = configData[i][0]; // Column A = Name
+      const sheetId = configData[i][2]; // Column C = Sheet ID
+      
+      if (name === ownerName && sheetId) {
+        aeSheetId = sheetId;
+        break;
+      }
+    }
+    
+    if (!aeSheetId) {
+      Logger.log(`[Instant Sync] No sheet ID found for ${ownerName}`);
+      return;
+    }
+    
+    Logger.log(`[Instant Sync] Found sheet ID: ${aeSheetId}`);
+    
     // Open AE's sheet
-    const aeSheet = SpreadsheetApp.openById(ae.sheetId);
+    const aeSheet = SpreadsheetApp.openById(aeSheetId);
     const pipelineSheet = aeSheet.getSheetByName('📊 Pipeline Review');
     
     if (!pipelineSheet) {
@@ -276,8 +302,11 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
       return;
     }
     
-    const lastRow = pipelineSheet.getLastRow();
-    if (lastRow < 2) return;
+    const aeLastRow = pipelineSheet.getLastRow();
+    if (aeLastRow < 2) {
+      Logger.log(`[Instant Sync] No deals in ${ownerName}'s sheet`);
+      return;
+    }
     
     // Find the deal in AE's sheet
     const headers = pipelineSheet.getRange(1, 1, 1, pipelineSheet.getLastColumn()).getValues()[0];
@@ -290,12 +319,14 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
       return;
     }
     
-    const dealNames = pipelineSheet.getRange(2, dealNameCol, lastRow - 1, 1).getValues();
+    const dealNames = pipelineSheet.getRange(2, dealNameCol, aeLastRow - 1, 1).getValues();
     
     // Find matching deal
     for (let i = 0; i < dealNames.length; i++) {
       if (dealNames[i][0] === dealName) {
         const rowIndex = i + 2;
+        
+        Logger.log(`[Instant Sync] Found deal at row ${rowIndex}, applying flag...`);
         
         // Set flag and note
         pipelineSheet.getRange(rowIndex, priorityCol).setValue(flag);
@@ -305,15 +336,24 @@ function syncSingleDealToAE(dealName, ownerName, flag, note, rowBackground) {
         const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, headers.length);
         rowRange.setBackgrounds([rowBackground]);
         
-        Logger.log(`[Instant Sync] ✅ Synced to ${ownerName}'s sheet`);
+        Logger.log(`[Instant Sync] ✅ Synced to ${ownerName}'s sheet (row ${rowIndex})`);
+        
+        // Show confirmation in UI
+        SpreadsheetApp.openById(CONTROL_SHEET_ID).toast(
+          `Flag synced to ${ownerName}'s sheet`, 
+          'Sync Complete', 
+          2
+        );
+        
         return;
       }
     }
     
-    Logger.log(`[Instant Sync] Deal "${dealName}" not found in ${ownerName}'s sheet`);
+    Logger.log(`[Instant Sync] Deal "${dealName}" not found in ${ownerName}'s sheet (searched ${dealNames.length} deals)`);
     
   } catch (error) {
     Logger.log(`[Instant Sync] Error: ${error.message}`);
+    Logger.log(`[Instant Sync] Stack: ${error.stack}`);
   }
 }
 
