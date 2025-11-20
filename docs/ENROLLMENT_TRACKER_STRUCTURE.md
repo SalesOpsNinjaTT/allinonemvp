@@ -23,20 +23,18 @@ This creates a rolling history where data naturally "scrolls down" each month.
 
 ```
 ┌──────────────────────────────────────────┐
-│  NOVEMBER 2025 - ENROLLMENTS             │
+│  NOVEMBER 2025 - ENROLLMENTS (Total: 12) │
 ├──────────────────────────────────────────┤
 │  Deal Name | Platform Email | Program... │
 │  Student 1 | email@... | MBA...         │
 │  Student 2 | email@... | DBA...         │
-│  Total: 12                                │
 └──────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────┐
-│  NOVEMBER 2025 - EASY STARTS             │
+│  NOVEMBER 2025 - EASY STARTS (Total: 3)  │
 ├──────────────────────────────────────────┤
 │  Deal Name | Easy Start | Platform...    │
 │  Student 3 | Started | email@...         │
-│  Total: 3                                 │
 └──────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────┐
@@ -63,7 +61,7 @@ This creates a rolling history where data naturally "scrolls down" each month.
 | Deal Name | `dealname` | Text | Hyperlinked to HubSpot |
 | Platform Email | `platform_email` | Text | Student's platform email |
 | Program | `program` | Text | Program name (MBA, DBA, etc.) |
-| Cohort Start Date | `cohort_start_date` | Date | When cohort starts |
+| Cohort Start Date | `start_date` | Date | When cohort starts |
 | Close Date | `closedate` | Date | Deal close date |
 | Warm Handoff | `warm_handoff_scoring` | Number | 🟥 0-2 🟨 2-3 🟩 3-5 |
 | Ask for Referral | `s_closing_the_deal__a_ask_for_referral` | Number | 🟥 0-2 🟨 2-3 🟩 3-5 |

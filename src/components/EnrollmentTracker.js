@@ -18,7 +18,7 @@ const ENROLLMENT_FIELDS = [
   { property: 'dealname', header: 'Deal Name', hyperlink: true, type: 'text' },
   { property: 'platform_email', header: 'Platform Email', type: 'text' },
   { property: 'program', header: 'Program', type: 'text' },
-  { property: 'cohort_start_date', header: 'Cohort Start Date', type: 'date' },
+  { property: 'start_date', header: 'Cohort Start Date', type: 'date' }, // Note: property name is 'start_date' in HubSpot
   { property: 'closedate', header: 'Close Date', type: 'date' },
   { property: 'warm_handoff_scoring', header: 'Warm Handoff', colorCode: true, type: 'number' },
   { property: 's_closing_the_deal__a_ask_for_referral', header: 'Ask for Referral', colorCode: true, type: 'number' }
@@ -243,9 +243,11 @@ function buildEnrollmentDataArray(groupedData, historicalData) {
     const monthData = groupedData[monthKey];
     const monthName = getMonthName(monthData.month);
     const year = monthData.year;
+    const enrollmentCount = monthData.regularEnrollments.length;
+    const easyStartCount = monthData.easyStarts.length;
     
-    // Month header for Regular Enrollments
-    dataArray.push([`${monthName.toUpperCase()} ${year} - ENROLLMENTS`]);
+    // Month header for Regular Enrollments with total
+    dataArray.push([`${monthName.toUpperCase()} ${year} - ENROLLMENTS (Total: ${enrollmentCount})`]);
     currentRow++;
     
     // Regular Enrollments Header
@@ -271,8 +273,8 @@ function buildEnrollmentDataArray(groupedData, historicalData) {
     dataArray.push([]);
     currentRow++;
     
-    // Month header for Easy Starts
-    dataArray.push([`${monthName.toUpperCase()} ${year} - EASY STARTS`]);
+    // Month header for Easy Starts with total
+    dataArray.push([`${monthName.toUpperCase()} ${year} - EASY STARTS (Total: ${easyStartCount})`]);
     currentRow++;
     
     // Easy Starts Header
