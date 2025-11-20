@@ -4,9 +4,11 @@
 - **GitHub**: https://github.com/SalesOpsNinjaTT/allinonemvp.git
 
 ## Apps Script Project
+- **Type**: Container-bound (attached to Control Sheet) ✅
 - **Account**: konstantin.gevorkov@tripleten.com (Work Account) ✅
-- **Script ID**: `1ndG3sIH-I_4Sz8OoHKRCU8Mr1ly2myU25Iw2tlJaEYf70hz3fv8wgD8k`
-- **Editor URL**: https://script.google.com/d/1ndG3sIH-I_4Sz8OoHKRCU8Mr1ly2myU25Iw2tlJaEYf70hz3fv8wgD8k/edit
+- **Script ID**: `1AlRJpl-uvs14yfoIpk_Y7rQ4XcKjm4KOSu7sHtDAKOFwyxjc-7uDqm4z`
+- **Editor URL**: https://script.google.com/u/0/home/projects/1AlRJpl-uvs14yfoIpk_Y7rQ4XcKjm4KOSu7sHtDAKOFwyxjc-7uDqm4z/edit
+- **Access via**: Control Sheet → Extensions → Apps Script
 
 ## Control Sheet
 - **Name**: All-In-One 2.0 MVP ✅
@@ -67,5 +69,5 @@ clasp pull
 
 ---
 
-**Last Updated**: November 19, 2025
+**Last Updated**: November 20, 2025 (Migrated to container-bound script)
 
