@@ -36,7 +36,7 @@ function loadConfiguration() {
     throw new Error(`Config sheet not found. Expected: ${TAB_CONFIG} or 'Salespeople Config'`);
   }
   
-  const salespeople = configSheet.getRange('A2:E' + configSheet.getLastRow())
+  const salespeople = configSheet.getRange('A2:F' + configSheet.getLastRow())
     .getValues()
     .filter(row => row[0] && row[1]) // Name and Email required
     .map(row => ({
@@ -44,7 +44,8 @@ function loadConfiguration() {
       email: row[1],
       sheetId: row[2] || '', // May be empty for new people
       sheetUrl: row[3] || '',
-      hubspotUserId: row[4] ? row[4].toString() : '' // HubSpot User ID
+      hubspotUserId: row[4] ? row[4].toString() : '', // HubSpot User ID
+      role: row[5] || '' // Role (AE, SrAE, CAE, etc.)
     }));
   
   // Read Goals
@@ -87,4 +88,73 @@ function getHubSpotToken() {
     throw new Error('HubSpot API token not configured. Set HUBSPOT_ACCESS_TOKEN in Script Properties.');
   }
   return token;
+}
+
+/**
+ * Load tier levels configuration from Control Sheet
+ * @returns {Map} Map of role name to tier levels array
+ */
+function getTierLevels() {
+  const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+  
+  // Try to find Tier Levels sheet
+  const tierSheet = ss.getSheetByName('🎯 Tier Levels') || ss.getSheetByName('Tier Levels');
+  
+  if (!tierSheet) {
+    Logger.log('Warning: Tier Levels sheet not found, returning empty map');
+    return new Map();
+  }
+  
+  const lastRow = tierSheet.getLastRow();
+  if (lastRow < 2) {
+    return new Map();
+  }
+  
+  // Read tier data: Tier | Min | Max | Percent | Role | Alt. Role Name
+  const data = tierSheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  
+  // Group by role
+  const tiersByRole = new Map();
+  
+  data.forEach(row => {
+    const tier = row[0];
+    const min = row[1];
+    const max = row[2];
+    const percent = row[3];
+    const role = row[4]; // Primary role name
+    const altRole = row[5]; // Alternative role name
+    
+    if (!role) return; // Skip rows without role
+    
+    const tierInfo = {
+      tier: tier,
+      min: min,
+      max: max === 100500 ? Infinity : max, // Handle placeholder
+      percent: percent,
+      displayMax: max === 100500 ? '35+' : max // For display purposes
+    };
+    
+    // Add to primary role name
+    if (!tiersByRole.has(role)) {
+      tiersByRole.set(role, []);
+    }
+    tiersByRole.get(role).push(tierInfo);
+    
+    // Also add to alternative role name if it exists
+    if (altRole && altRole !== '') {
+      if (!tiersByRole.has(altRole)) {
+        tiersByRole.set(altRole, []);
+      }
+      tiersByRole.get(altRole).push(tierInfo);
+    }
+  });
+  
+  // Sort tiers by tier number for each role
+  tiersByRole.forEach((tiers, role) => {
+    tiers.sort((a, b) => a.tier - b.tier);
+  });
+  
+  Logger.log(`Loaded tier levels for ${tiersByRole.size} roles`);
+  
+  return tiersByRole;
 }

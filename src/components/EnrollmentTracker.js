@@ -13,6 +13,14 @@
 // FIELD CONFIGURATION
 // ============================================================================
 
+// Colors for tier progress bar
+const TIER_COLORS = {
+  BACKGROUND: '#fff3cd',      // Light yellow background
+  PROGRESS_FILL: '#4CAF50',   // Green for filled progress
+  PROGRESS_EMPTY: '#e0e0e0',  // Gray for empty progress
+  TEXT: '#000000'             // Black text
+};
+
 // Enrollment fields (displayed for both Regular and Easy Start enrollments)
 const ENROLLMENT_FIELDS = [
   { property: 'dealname', header: 'Deal Name', hyperlink: true, type: 'text' },
@@ -73,6 +81,98 @@ function getEasyStartHeaders() {
 }
 
 // ============================================================================
+// TIER PROGRESS CALCULATION
+// ============================================================================
+
+/**
+ * Calculates tier progress for a person based on their role and enrollment count
+ * @param {string} role - Person's role (e.g., "SrAE", "AE", "CAE")
+ * @param {number} enrollmentCount - Current enrollment count
+ * @param {Map} tierLevels - Tier levels configuration
+ * @returns {Object} Progress info {currentTier, progress, nextTierAt, percent, message}
+ */
+function calculateTierProgress(role, enrollmentCount, tierLevels) {
+  if (!role || !tierLevels.has(role)) {
+    return null; // No tier data for this role
+  }
+  
+  const tiers = tierLevels.get(role);
+  if (!tiers || tiers.length === 0) {
+    return null;
+  }
+  
+  // Find current tier
+  let currentTier = null;
+  let nextTier = null;
+  
+  for (let i = 0; i < tiers.length; i++) {
+    const tier = tiers[i];
+    
+    if (enrollmentCount >= tier.min && enrollmentCount <= tier.max) {
+      currentTier = tier;
+      nextTier = i < tiers.length - 1 ? tiers[i + 1] : null;
+      break;
+    }
+  }
+  
+  // If not in any tier, check if below first tier
+  if (!currentTier && enrollmentCount < tiers[0].min) {
+    nextTier = tiers[0];
+    
+    return {
+      currentTier: 0,
+      currentTierInfo: null,
+      nextTierInfo: nextTier,
+      progress: 0,
+      nextTierAt: nextTier.min,
+      remaining: nextTier.min - enrollmentCount,
+      percent: 0,
+      message: `${enrollmentCount} enrollments | ${nextTier.min - enrollmentCount} more to reach Tier 1 (${nextTier.percent})`
+    };
+  }
+  
+  // Calculate progress
+  if (!currentTier) {
+    return null; // Shouldn't happen
+  }
+  
+  // If we're in the max tier (tier 3)
+  if (!nextTier || currentTier.max === Infinity) {
+    return {
+      currentTier: currentTier.tier,
+      currentTierInfo: currentTier,
+      nextTierInfo: null,
+      progress: 100,
+      nextTierAt: null,
+      remaining: 0,
+      percent: 100,
+      message: `${enrollmentCount} enrollments | MAX TIER ${currentTier.tier} 🎉 | ${currentTier.percent} commission`
+    };
+  }
+  
+  // Calculate progress within current tier towards next tier
+  const tierRange = nextTier.min - currentTier.min;
+  const progressInTier = enrollmentCount - currentTier.min;
+  const progressPercent = Math.min(100, Math.round((progressInTier / tierRange) * 100));
+  
+  // For display, show progress towards next tier
+  const progressToNext = enrollmentCount - currentTier.min;
+  const totalToNext = nextTier.min - currentTier.min;
+  const percentToNext = Math.min(100, Math.round((progressToNext / totalToNext) * 100));
+  
+  return {
+    currentTier: currentTier.tier,
+    currentTierInfo: currentTier,
+    nextTierInfo: nextTier,
+    progress: percentToNext,
+    nextTierAt: nextTier.min,
+    remaining: nextTier.min - enrollmentCount,
+    percent: percentToNext,
+    message: `Tier ${currentTier.tier} | ${enrollmentCount} enrollments | ${percentToNext}% to Tier ${nextTier.tier} 🎯 | +${nextTier.min - enrollmentCount} for ${nextTier.percent} commission!`
+  };
+}
+
+// ============================================================================
 // MAIN ENROLLMENT TRACKER FUNCTION
 // ============================================================================
 
@@ -121,18 +221,35 @@ function updateEnrollmentTracker(individualSheet, person) {
     Logger.log('  Step 3: Grouping deals by month...');
     const groupedData = groupDealsByMonth(deals);
     
-    // Step 4: Build sheet data
-    Logger.log('  Step 4: Building sheet data...');
-    const { dataArray, urlMap } = buildEnrollmentDataArray(groupedData, historicalData);
+    // Step 4: Calculate tier progress (if role is available)
+    Logger.log('  Step 4: Calculating tier progress...');
+    let tierProgress = null;
+    if (person.role && person.role !== '') {
+      const tierLevels = getTierLevels();
+      // Count total enrollments (not Easy Starts)
+      const totalEnrollments = deals.filter(deal => {
+        const easyStartOption = extractDealProperty(deal, 'easy_start_option');
+        return !easyStartOption || !EASY_START_VALUES.includes(easyStartOption);
+      }).length;
+      
+      tierProgress = calculateTierProgress(person.role, totalEnrollments, tierLevels);
+      if (tierProgress) {
+        Logger.log(`  Tier progress: ${tierProgress.message}`);
+      }
+    }
     
-    // Step 5: Clear and write data
-    Logger.log('  Step 5: Writing data to sheet...');
+    // Step 5: Build sheet data
+    Logger.log('  Step 5: Building sheet data...');
+    const { dataArray, urlMap } = buildEnrollmentDataArray(groupedData, historicalData, tierProgress);
+    
+    // Step 6: Clear and write data
+    Logger.log('  Step 6: Writing data to sheet...');
     sheet.clear();
     writeEnrollmentDataToSheet(sheet, dataArray, urlMap);
     
-    // Step 6: Apply formatting
-    Logger.log('  Step 6: Applying formatting...');
-    applyEnrollmentFormatting(sheet, dataArray);
+    // Step 7: Apply formatting
+    Logger.log('  Step 7: Applying formatting...');
+    applyEnrollmentFormatting(sheet, dataArray, tierProgress);
     
     const duration = (new Date() - startTime) / 1000;
     Logger.log(`[Enrollment Tracker] Complete for ${person.name} (${duration}s)`);
@@ -236,12 +353,33 @@ function groupDealsByMonth(deals) {
  * Builds the data array for Enrollment Tracker sheet
  * @param {Object} groupedData - Deals grouped by month
  * @param {Array} historicalData - Preserved historical data
+ * @param {Object} tierProgress - Tier progress information (optional)
  * @returns {Object} {dataArray, urlMap}
  */
-function buildEnrollmentDataArray(groupedData, historicalData) {
+function buildEnrollmentDataArray(groupedData, historicalData, tierProgress) {
   const dataArray = [];
   const urlMap = {}; // Map of row index to URL for hyperlinks
   let currentRow = 1;
+  
+  // Add tier progress bar at the top if available
+  if (tierProgress) {
+    // Create progress bar text with filled and empty blocks
+    const totalBlocks = 15; // Total number of blocks in progress bar
+    const filledBlocks = Math.round((tierProgress.percent / 100) * totalBlocks);
+    const emptyBlocks = totalBlocks - filledBlocks;
+    
+    const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+    
+    // Single row with progress bar and message
+    const progressText = `🎯 ${tierProgress.message.split('|').map(s => s.trim()).join(' | ')} [${progressBar}]`;
+    
+    dataArray.push([progressText]);
+    currentRow++;
+    
+    // Empty row for spacing
+    dataArray.push([]);
+    currentRow++;
+  }
   
   const months = Object.keys(groupedData);
   
@@ -413,8 +551,9 @@ function writeEnrollmentDataToSheet(sheet, dataArray, urlMap) {
  * Applies formatting to Enrollment Tracker sheet
  * @param {Sheet} sheet - The sheet to format
  * @param {Array<Array>} dataArray - The data array for context
+ * @param {Object} tierProgress - Tier progress information (optional)
  */
-function applyEnrollmentFormatting(sheet, dataArray) {
+function applyEnrollmentFormatting(sheet, dataArray, tierProgress) {
   if (dataArray.length === 0) {
     return;
   }
@@ -425,6 +564,8 @@ function applyEnrollmentFormatting(sheet, dataArray) {
     sheet.autoResizeColumn(col);
   }
   
+  let progressBarRow = 0;
+  
   // Apply formatting to each row based on content
   for (let i = 0; i < dataArray.length; i++) {
     const rowIndex = i + 1;
@@ -432,6 +573,24 @@ function applyEnrollmentFormatting(sheet, dataArray) {
     
     if (!firstCell || firstCell === '') {
       // Empty row - skip
+      continue;
+    }
+    
+    // Tier progress bar (starts with 🎯)
+    if (typeof firstCell === 'string' && firstCell.startsWith('🎯')) {
+      progressBarRow = rowIndex;
+      const range = sheet.getRange(rowIndex, 1, 1, maxCols);
+      range
+        .setFontWeight('bold')
+        .setFontSize(11)
+        .setBackground(TIER_COLORS.BACKGROUND)
+        .setFontColor(TIER_COLORS.TEXT)
+        .setWrap(false)
+        .merge();
+      
+      // Set row height for better visibility
+      sheet.setRowHeight(rowIndex, 35);
+      
       continue;
     }
     
@@ -457,6 +616,11 @@ function applyEnrollmentFormatting(sheet, dataArray) {
         .setHorizontalAlignment('center');
       continue;
     }
+  }
+  
+  // Freeze the progress bar row if it exists
+  if (progressBarRow > 0) {
+    sheet.setFrozenRows(progressBarRow);
   }
   
   // Apply color-coding to score columns
