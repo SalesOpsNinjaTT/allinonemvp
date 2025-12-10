@@ -97,11 +97,11 @@ function getHubSpotToken() {
 function getTierLevels() {
   const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
   
-  // Try to find Tier Levels sheet
-  const tierSheet = ss.getSheetByName('🎯 Tier Levels') || ss.getSheetByName('Tier Levels');
+  // Try to find tiers sheet
+  const tierSheet = ss.getSheetByName('tiers') || ss.getSheetByName('Tiers');
   
   if (!tierSheet) {
-    Logger.log('Warning: Tier Levels sheet not found, returning empty map');
+    Logger.log('Warning: tiers sheet not found, returning empty map');
     return new Map();
   }
   
