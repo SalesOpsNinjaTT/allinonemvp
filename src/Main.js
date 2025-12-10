@@ -66,7 +66,14 @@ function generateAllDashboards() {
           Logger.log(`  ❌ Enrollment Tracker failed: ${enrollmentResult.error}`);
         }
         
-        // TODO: Phase 3 - Update Bonus Calculation tab
+        // Update Bonus Calculation tab (copies from legacy Clean 2.2 system)
+        const bonusResult = updateBonusCalculation(sheet, person);
+        if (bonusResult.success) {
+          Logger.log(`  ✅ Bonus Calculation: ${bonusResult.rowCount} rows copied from legacy system`);
+        } else {
+          Logger.log(`  ❌ Bonus Calculation failed: ${bonusResult.error}`);
+        }
+        
         // TODO: Phase 4 - Update Operational Metrics tab
         
         Logger.log(`✅ ${person.name} - SUCCESS`);
@@ -145,6 +152,48 @@ function testSingleSalesperson() {
     Logger.log(`✅ Test successful`);
     Logger.log(`   Sheet ID: ${sheet.getId()}`);
     Logger.log(`   Sheet URL: ${sheet.getUrl()}`);
+    
+  } catch (e) {
+    Logger.log(`❌ Test failed: ${e.message}`);
+    Logger.log(e.stack);
+  }
+}
+
+/**
+ * Test function for bonus calculation copy
+ * Run this to test copying bonus data for a single person
+ */
+function testBonusCopy() {
+  Logger.log('=== Testing Bonus Calculation Copy ===');
+  
+  try {
+    const config = loadConfiguration();
+    const firstPerson = config.salespeople[0];
+    
+    if (!firstPerson) {
+      throw new Error('No salespeople found in Salespeople Config');
+    }
+    
+    Logger.log(`Testing bonus copy for: ${firstPerson.name} (${firstPerson.email})`);
+    
+    // Get their sheet
+    if (!firstPerson.sheetId) {
+      throw new Error(`No sheet ID found for ${firstPerson.name}. Run testSingleSalesperson() first.`);
+    }
+    
+    const sheet = SpreadsheetApp.openById(firstPerson.sheetId);
+    
+    // Test bonus calculation copy
+    const result = updateBonusCalculation(sheet, firstPerson);
+    
+    if (result.success) {
+      Logger.log(`✅ Bonus copy successful`);
+      Logger.log(`   Rows copied: ${result.rowCount}`);
+      Logger.log(`   Columns copied: ${result.colCount}`);
+      Logger.log(`   Duration: ${result.duration}s`);
+    } else {
+      Logger.log(`❌ Bonus copy failed: ${result.error}`);
+    }
     
   } catch (e) {
     Logger.log(`❌ Test failed: ${e.message}`);
