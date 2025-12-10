@@ -402,53 +402,54 @@ function buildEnrollmentDataArray(groupedData, historicalData, tierProgress) {
   
   // Add tier progress bar at the top if available
   if (tierProgress && tierProgress.allTiers && tierProgress.allTiers.length > 0) {
-    // CREATE A SINGLE CONTINUOUS PROGRESS BAR SPANNING ALL TIERS
+    // CREATE A SINGLE CONTINUOUS PROGRESS BAR WITH EMBEDDED TIER NUMBERS
     const allTiers = tierProgress.allTiers;
     const currentEnrollments = tierProgress.enrollmentCount || 0;
     
-    // Find max tier threshold (the highest tier's max value)
+    // Find max tier threshold (use the last tier's min since max might be Infinity)
     const maxTier = allTiers[allTiers.length - 1];
-    const maxThreshold = maxTier.max === Infinity ? maxTier.min : maxTier.max;
+    const maxThreshold = maxTier.min; // Use min of last tier as the max threshold
     
-    // Calculate overall progress (0 to maxThreshold)
-    const overallProgress = Math.min(currentEnrollments / maxThreshold, 1);
+    // Build progress bar with embedded numbers
+    const totalLength = 50; // Total character length for the bar
     
-    // Build progress bar with tier markers
-    const totalBlocks = 30; // Longer bar for better visibility
-    const filledBlocks = Math.round(overallProgress * totalBlocks);
+    // Calculate positions for each tier marker
+    const tierPositions = allTiers.map(tier => ({
+      tier: tier.tier,
+      value: tier.min,
+      position: Math.round((tier.min / maxThreshold) * totalLength),
+      percent: formatPercentDisplay(tier.percent)
+    }));
     
-    // Create visual bar with tier separators
-    let progressBar = '';
-    let blocksSoFar = 0;
+    // Build the progress bar character by character
+    let progressBar = '[';
+    const currentPosition = Math.round((currentEnrollments / maxThreshold) * totalLength);
     
-    for (let i = 0; i < allTiers.length; i++) {
-      const tier = allTiers[i];
-      const tierMax = tier.max === Infinity ? maxThreshold : tier.max;
-      const tierBlockEnd = Math.round((tierMax / maxThreshold) * totalBlocks);
-      const tierBlocks = tierBlockEnd - blocksSoFar;
+    for (let i = 0; i <= totalLength; i++) {
+      // Check if there's a tier marker at this position
+      const tierAtPosition = tierPositions.find(t => {
+        const numStr = t.value.toString();
+        const numLength = numStr.length;
+        // Check if this is the start position of this number
+        return t.position === i;
+      });
       
-      // Fill blocks for this tier section
-      for (let j = 0; j < tierBlocks; j++) {
-        if (blocksSoFar + j < filledBlocks) {
+      if (tierAtPosition) {
+        // Insert the tier number
+        const numStr = tierAtPosition.value.toString();
+        progressBar += numStr;
+        i += numStr.length - 1; // Skip ahead by the length of the number
+      } else {
+        // Regular progress bar character
+        if (i < currentPosition) {
           progressBar += '▓'; // Filled
         } else {
           progressBar += '░'; // Empty
         }
       }
-      
-      // Add separator between tiers (except after last tier)
-      if (i < allTiers.length - 1) {
-        progressBar += '│';
-      }
-      
-      blocksSoFar = tierBlockEnd;
     }
     
-    // Build tier milestone labels
-    const tierLabels = allTiers.map(t => {
-      const label = `T${t.tier}:${t.min}`;
-      return label;
-    }).join(' ');
+    progressBar += ']';
     
     // Determine current status message
     let statusMsg = '';
@@ -470,7 +471,7 @@ function buildEnrollmentDataArray(groupedData, historicalData, tierProgress) {
     }
     
     // Assemble full display
-    const displayText = `🎯 ${statusMsg}  [${progressBar}]  ${tierLabels}`;
+    const displayText = `🎯 ${statusMsg}  ${progressBar}`;
     
     dataArray.push([displayText]);
     currentRow++;
