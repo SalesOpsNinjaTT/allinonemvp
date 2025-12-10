@@ -54,11 +54,11 @@ function updateBonusCalculation(individualSheet, person) {
     if (!legacySheetId) {
       Logger.log(`  No legacy bonus sheet found for ${person.name}, skipping`);
       sheet.clear();
-      sheet.getRange('A1').setValue(`⚠️ No legacy bonus data found for ${person.name}`)
+      sheet.getRange('A1').setValue(`⚠️ No commission data found for ${person.name}`)
         .setFontWeight('bold')
         .setFontColor('#cc0000')
         .setFontSize(12);
-      sheet.getRange('A3').setValue(`Please check the legacy Control Sheet to ensure ${person.name} has a bonus sheet ID configured.`)
+      sheet.getRange('A3').setValue(`Please check the commission system to ensure ${person.name} has a commission sheet ID configured.`)
         .setWrap(true);
       return {
         success: false,
@@ -80,8 +80,8 @@ function updateBonusCalculation(individualSheet, person) {
       
       sheet.clear();
       
-      // Add hyperlink to legacy sheet
-      const linkText = '🔗 Open your legacy bonus sheet';
+      // Add hyperlink to detailed commission sheet
+      const linkText = '🔗 Open your detailed commission sheet';
       sheet.getRange(1, 1)
         .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
         .setFontWeight('bold')
@@ -90,12 +90,12 @@ function updateBonusCalculation(individualSheet, person) {
         .setFontColor('#0000ff');
       
       // Add error message
-      sheet.getRange(3, 1).setValue(`⚠️ Legacy bonus sheet found, but no "📈 Monthly Bonus Report" tab`)
+      sheet.getRange(3, 1).setValue(`⚠️ Commission sheet found, but no "📈 Monthly Bonus Report" tab`)
         .setFontWeight('bold')
         .setFontColor('#ff9900')
         .setFontSize(12);
       
-      sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet. The "Monthly Bonus Report" tab may need to be created.`)
+      sheet.getRange(4, 1).setValue(`Click the link above to view your detailed commission sheet. The "Monthly Bonus Report" tab may need to be created.`)
         .setWrap(true);
       
       return {
@@ -115,8 +115,8 @@ function updateBonusCalculation(individualSheet, person) {
       
       sheet.clear();
       
-      // Add hyperlink to legacy sheet
-      const linkText = '🔗 Open your legacy bonus sheet';
+      // Add hyperlink to detailed commission sheet
+      const linkText = '🔗 Open your detailed commission sheet';
       sheet.getRange(1, 1)
         .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
         .setFontWeight('bold')
@@ -125,12 +125,12 @@ function updateBonusCalculation(individualSheet, person) {
         .setFontColor('#0000ff');
       
       // Add error message
-      sheet.getRange(3, 1).setValue(`⚠️ Legacy bonus data is empty`)
+      sheet.getRange(3, 1).setValue(`⚠️ Commission data is empty`)
         .setFontWeight('bold')
         .setFontColor('#ff9900')
         .setFontSize(12);
       
-      sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet. You may need to run the bonus calculation in the legacy system first.`)
+      sheet.getRange(4, 1).setValue(`Click the link above to view your detailed commission sheet. You may need to run the bonus calculation in the commission system first.`)
         .setWrap(true);
       
       return {
@@ -155,9 +155,9 @@ function updateBonusCalculation(individualSheet, person) {
     Logger.log('  Step 4: Writing to new dashboard...');
     sheet.clear();
     
-    // Add hyperlink to legacy sheet at the top
+    // Add hyperlink to detailed commission sheet at the top
     const legacySheetUrl = legacySheet.getUrl();
-    const linkText = '🔗 View full bonus details in your legacy bonus sheet (click here)';
+    const linkText = '🔗 View detailed commission sheet with full breakdown (click here)';
     
     sheet.getRange(1, 1)
       .setValue(linkText)
@@ -219,13 +219,13 @@ function updateBonusCalculation(individualSheet, person) {
       if (sheet) {
         sheet.clear();
         
-        // Try to add hyperlink to legacy sheet if we have the ID
+        // Try to add hyperlink to detailed commission sheet if we have the ID
         const legacySheetId = getLegacyBonusSheetId(person);
         if (legacySheetId) {
           try {
             const legacySheet = SpreadsheetApp.openById(legacySheetId);
             const legacySheetUrl = legacySheet.getUrl();
-            const linkText = '🔗 Open your legacy bonus sheet';
+            const linkText = '🔗 Open your detailed commission sheet';
             
             sheet.getRange(1, 1)
               .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
@@ -234,21 +234,21 @@ function updateBonusCalculation(individualSheet, person) {
               .setBackground('#fff3cd')
               .setFontColor('#0000ff');
             
-            sheet.getRange(3, 1).setValue(`❌ Error loading bonus data: ${error.message}`)
+            sheet.getRange(3, 1).setValue(`❌ Error loading commission data: ${error.message}`)
               .setFontWeight('bold')
               .setFontColor('#cc0000')
               .setFontSize(12);
             
-            sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet directly.`)
+            sheet.getRange(4, 1).setValue(`Click the link above to view your detailed commission sheet directly.`)
               .setWrap(true);
           } catch (e) {
-            // If we can't open legacy sheet, just show error
-            sheet.getRange('A1').setValue(`❌ Error loading bonus data: ${error.message}`)
+            // If we can't open commission sheet, just show error
+            sheet.getRange('A1').setValue(`❌ Error loading commission data: ${error.message}`)
               .setFontWeight('bold')
               .setFontColor('#cc0000');
           }
         } else {
-          sheet.getRange('A1').setValue(`❌ Error loading bonus data: ${error.message}`)
+          sheet.getRange('A1').setValue(`❌ Error loading commission data: ${error.message}`)
             .setFontWeight('bold')
             .setFontColor('#cc0000');
         }
