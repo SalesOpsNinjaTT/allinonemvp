@@ -110,6 +110,13 @@ function updateEnrollmentTracker(individualSheet, person) {
     const deals = fetchEnrollmentDeals(person.email, properties, options);
     Logger.log(`  Found ${deals.length} enrollment deals`);
     
+    // Debug: Log properties of first deal to verify property names
+    if (deals.length > 0) {
+      Logger.log(`  DEBUG - First deal properties: ${Object.keys(deals[0].properties || {}).join(', ')}`);
+      Logger.log(`  DEBUG - start_date value: ${deals[0].properties?.start_date || 'EMPTY'}`);
+      Logger.log(`  DEBUG - cohort_start_date value: ${deals[0].properties?.cohort_start_date || 'EMPTY'}`);
+    }
+    
     // Step 3: Group deals by month and type
     Logger.log('  Step 3: Grouping deals by month...');
     const groupedData = groupDealsByMonth(deals);
