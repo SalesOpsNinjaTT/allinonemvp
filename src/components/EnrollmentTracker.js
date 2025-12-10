@@ -155,7 +155,9 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
       nextTierAt: nextTier.min,
       remaining: nextTier.min - enrollmentCount,
       percent: 0,
-      message: `${enrollmentCount} enrollments | ${nextTier.min - enrollmentCount} more to reach Tier 1 (${formatPercentDisplay(nextTier.percent)})`
+      message: `${enrollmentCount} enrollments | ${nextTier.min - enrollmentCount} more to reach Tier 1 (${formatPercentDisplay(nextTier.percent)})`,
+      allTiers: tiers,
+      enrollmentCount: enrollmentCount
     };
   }
   
@@ -174,7 +176,9 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
       nextTierAt: null,
       remaining: 0,
       percent: 100,
-      message: `${enrollmentCount} enrollments | MAX TIER ${currentTier.tier} 🎉 | ${formatPercentDisplay(currentTier.percent)} commission`
+      message: `${enrollmentCount} enrollments | MAX TIER ${currentTier.tier} 🎉 | ${formatPercentDisplay(currentTier.percent)} commission`,
+      allTiers: tiers,
+      enrollmentCount: enrollmentCount
     };
   }
   
@@ -196,7 +200,9 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
     nextTierAt: nextTier.min,
     remaining: nextTier.min - enrollmentCount,
     percent: percentToNext,
-    message: `Tier ${currentTier.tier} | ${enrollmentCount} enrollments | ${percentToNext}% to Tier ${nextTier.tier} 🎯 | +${nextTier.min - enrollmentCount} for ${formatPercentDisplay(nextTier.percent)} commission!`
+    message: `Tier ${currentTier.tier} | ${enrollmentCount} enrollments | ${percentToNext}% to Tier ${nextTier.tier} 🎯 | +${nextTier.min - enrollmentCount} for ${formatPercentDisplay(nextTier.percent)} commission!`,
+    allTiers: tiers,
+    enrollmentCount: enrollmentCount
   };
 }
 
@@ -395,47 +401,76 @@ function buildEnrollmentDataArray(groupedData, historicalData, tierProgress) {
   let currentRow = 1;
   
   // Add tier progress bar at the top if available
-  if (tierProgress) {
-    // Create a COOL, READABLE progress bar display
-    const totalBlocks = 20; // Increased for better visibility
-    const filledBlocks = Math.round((tierProgress.percent / 100) * totalBlocks);
-    const emptyBlocks = totalBlocks - filledBlocks;
+  if (tierProgress && tierProgress.allTiers && tierProgress.allTiers.length > 0) {
+    // CREATE A SINGLE CONTINUOUS PROGRESS BAR SPANNING ALL TIERS
+    const allTiers = tierProgress.allTiers;
+    const currentEnrollments = tierProgress.enrollmentCount || 0;
     
-    // Use better block characters for visual appeal
-    const progressBar = '▓'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+    // Find max tier threshold (the highest tier's max value)
+    const maxTier = allTiers[allTiers.length - 1];
+    const maxThreshold = maxTier.max === Infinity ? maxTier.min : maxTier.max;
     
-    // Extract info from message
-    const parts = tierProgress.message.split('|').map(s => s.trim());
+    // Calculate overall progress (0 to maxThreshold)
+    const overallProgress = Math.min(currentEnrollments / maxThreshold, 1);
     
-    // Build a clean, multi-part display
-    let displayText = '';
+    // Build progress bar with tier markers
+    const totalBlocks = 30; // Longer bar for better visibility
+    const filledBlocks = Math.round(overallProgress * totalBlocks);
     
-    if (tierProgress.currentTierInfo || tierProgress.currentTier > 0) {
-      // Currently in a tier
-      const tier = tierProgress.currentTier;
-      const enrollments = parts[1] || ''; // "X enrollments"
-      const percent = tierProgress.percent;
+    // Create visual bar with tier separators
+    let progressBar = '';
+    let blocksSoFar = 0;
+    
+    for (let i = 0; i < allTiers.length; i++) {
+      const tier = allTiers[i];
+      const tierMax = tier.max === Infinity ? maxThreshold : tier.max;
+      const tierBlockEnd = Math.round((tierMax / maxThreshold) * totalBlocks);
+      const tierBlocks = tierBlockEnd - blocksSoFar;
       
-      if (tierProgress.nextTierInfo) {
-        // Progress towards next tier
-        const remaining = tierProgress.remaining;
-        const nextTier = tierProgress.nextTierInfo.tier;
-        const nextPercent = formatPercentDisplay(tierProgress.nextTierInfo.percent);
-        
-        displayText = `🎯 TIER ${tier} ║ ${enrollments} ║ ${Math.round(percent)}% → Tier ${nextTier} ║ +${remaining} for ${nextPercent}  [${progressBar}]`;
-      } else {
-        // Max tier achieved
-        const commission = formatPercentDisplay(tierProgress.currentTierInfo.percent);
-        displayText = `🏆 MAX TIER ${tier} ║ ${enrollments} ║ ${commission} Commission  [${progressBar}] 🏆`;
+      // Fill blocks for this tier section
+      for (let j = 0; j < tierBlocks; j++) {
+        if (blocksSoFar + j < filledBlocks) {
+          progressBar += '▓'; // Filled
+        } else {
+          progressBar += '░'; // Empty
+        }
       }
-    } else {
-      // Below first tier
-      const enrollments = parts[0] || '';
-      const remaining = tierProgress.remaining;
-      const nextPercent = formatPercentDisplay(tierProgress.nextTierInfo?.percent || '');
       
-      displayText = `🎯 ${enrollments} ║ +${remaining} to Tier 1 (${nextPercent})  [${progressBar}]`;
+      // Add separator between tiers (except after last tier)
+      if (i < allTiers.length - 1) {
+        progressBar += '│';
+      }
+      
+      blocksSoFar = tierBlockEnd;
     }
+    
+    // Build tier milestone labels
+    const tierLabels = allTiers.map(t => {
+      const label = `T${t.tier}:${t.min}`;
+      return label;
+    }).join(' ');
+    
+    // Determine current status message
+    let statusMsg = '';
+    if (tierProgress.currentTier === 0) {
+      // Below first tier
+      const nextTier = allTiers[0];
+      const remaining = nextTier.min - currentEnrollments;
+      statusMsg = `${currentEnrollments} enrollments ║ +${remaining} to reach Tier 1 (${formatPercentDisplay(nextTier.percent)})`;
+    } else if (tierProgress.nextTierInfo) {
+      // In a tier, working towards next
+      const remaining = tierProgress.remaining;
+      const nextTier = tierProgress.nextTierInfo.tier;
+      const nextPercent = formatPercentDisplay(tierProgress.nextTierInfo.percent);
+      statusMsg = `TIER ${tierProgress.currentTier} ║ ${currentEnrollments} enrollments ║ +${remaining} to Tier ${nextTier} (${nextPercent})`;
+    } else {
+      // Max tier achieved
+      const commission = formatPercentDisplay(tierProgress.currentTierInfo.percent);
+      statusMsg = `🏆 MAX TIER ${tierProgress.currentTier} ║ ${currentEnrollments} enrollments ║ ${commission} Commission`;
+    }
+    
+    // Assemble full display
+    const displayText = `🎯 ${statusMsg}  [${progressBar}]  ${tierLabels}`;
     
     dataArray.push([displayText]);
     currentRow++;
