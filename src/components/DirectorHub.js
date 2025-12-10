@@ -41,7 +41,7 @@ function updateDirectorHub(controlSheet, salespeople) {
     // Step 2: Fetch and aggregate deals from all AEs
     Logger.log('  Step 2: Fetching deals for all AEs...');
     const allDeals = [];
-    const properties = getPipelineReviewProperties();
+    const properties = PIPELINE_PROPERTIES; // Defined in PipelineReview.js
     
     salespeople.forEach(person => {
       Logger.log(`    Fetching for ${person.name}...`);
@@ -670,12 +670,12 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       formatDate(properties.notes_next_activity_date),
       properties.why_not_purchase_today_ || '',
       properties.call_quality_score || '',
-      properties.s_discovery_a_questioning_technique__details || '',
-      properties.s_building_value_a_tailoring_features_and_benefits__details || '',
-      properties.s_funding_options__a_identifying_funding_needs__details || '',
-      properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles__details || '',
-      properties.s_closing_the_deal__a_assuming_the_sale__details || '',
-      properties.s_closing_the_deal__a_ask_for_referral__details || '',
+      properties.s_discovery_a_questioning_technique || '',
+      properties.s_building_value_a_tailoring_features_and_benefits || '',
+      properties.s_funding_options__a_identifying_funding_needs || '',
+      properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles || '',
+      properties.s_closing_the_deal__a_assuming_the_sale || '',
+      properties.s_closing_the_deal__a_ask_for_referral || '',
       notesMap.get(dealId) || '' // Notes from AE
     ];
     
@@ -741,11 +741,14 @@ function applyConsolidatedPipelineFormatting(sheet, dataArray, highlightMap) {
 
 /**
  * Applies call quality color coding to consolidated pipeline
+ * Uses conditional formatting rules (FAST - single operation per column)
  * @param {Sheet} sheet - Director's tab
  * @param {Array} dataArray - 2D data array
  */
 function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
   const headers = dataArray[0];
+  const dataRowCount = dataArray.length - 1; // Exclude header
+  if (dataRowCount < 1) return;
   
   // Find call quality column indices
   const callQualityHeaders = [
@@ -758,27 +761,30 @@ function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
     'Ask for Referral'
   ];
   
+  const rules = [];
+  
   callQualityHeaders.forEach(header => {
     const colIndex = headers.indexOf(header) + 1;
     if (colIndex === 0) return;
     
-    for (let row = 2; row <= dataArray.length; row++) {
-      const value = sheet.getRange(row, colIndex).getValue();
-      if (value === '' || value === null) continue;
-      
-      const numValue = parseFloat(value);
-      if (isNaN(numValue)) continue;
-      
-      let color = SCORE_COLORS.GREEN;
-      if (numValue <= 2) {
-        color = SCORE_COLORS.RED;
-      } else if (numValue === 3) {
-        color = SCORE_COLORS.YELLOW;
-      }
-      
-      sheet.getRange(row, colIndex).setBackground(color);
-    }
+    const range = sheet.getRange(2, colIndex, dataRowCount, 1);
+    
+    // Gradient: Red (0) → Yellow (2.5) → Green (5)
+    const rule = SpreadsheetApp.newConditionalFormatRule()
+      .setGradientMinpointWithValue('#F4C7C3', SpreadsheetApp.InterpolationType.NUMBER, '0')
+      .setGradientMidpointWithValue('#FCE8B2', SpreadsheetApp.InterpolationType.NUMBER, '2.5')
+      .setGradientMaxpointWithValue('#B7E1CD', SpreadsheetApp.InterpolationType.NUMBER, '5')
+      .setRanges([range])
+      .build();
+    
+    rules.push(rule);
   });
+  
+  if (rules.length > 0) {
+    // Get existing rules and append new ones
+    const existingRules = sheet.getConditionalFormatRules();
+    sheet.setConditionalFormatRules(existingRules.concat(rules));
+  }
 }
 
 /**
