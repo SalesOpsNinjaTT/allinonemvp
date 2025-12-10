@@ -36,7 +36,7 @@ function loadConfiguration() {
     throw new Error(`Config sheet not found. Expected: ${TAB_CONFIG} or 'Salespeople Config'`);
   }
   
-  const salespeople = configSheet.getRange('A2:F' + configSheet.getLastRow())
+  const salespeople = configSheet.getRange('A2:H' + configSheet.getLastRow())
     .getValues()
     .filter(row => row[0] && row[1]) // Name and Email required
     .map(row => ({
@@ -44,8 +44,10 @@ function loadConfiguration() {
       email: row[1],
       sheetId: row[2] || '', // May be empty for new people
       sheetUrl: row[3] || '',
-      hubspotUserId: row[4] ? row[4].toString() : '', // HubSpot User ID
-      role: row[5] || '' // Role (AE, SrAE, CAE, etc.)
+      hubspotUserId: row[4] ? row[4].toString() : '', // HubSpot User ID (Column E)
+      team: row[5] || '', // Team (Column F)
+      role: row[6] || '', // Role (Column G) - AE, SrAE, CAE, etc.
+      smallTeam: row[7] || '' // Small team (Column H)
     }));
   
   // Read Goals
