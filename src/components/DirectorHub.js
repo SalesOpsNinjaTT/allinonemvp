@@ -432,3 +432,382 @@ function restoreDirectorDirectives(sheet, directives, dealIdMap) {
   Logger.log(`  Restored ${restoredCount} directives`);
 }
 
+// ============================================================================
+// MULTI-DIRECTOR CONSOLIDATED PIPELINE
+// ============================================================================
+
+/**
+ * Updates all director consolidated pipeline tabs
+ * Bi-directional sync: AE notes → Director, Director highlighting → AE
+ */
+function updateAllDirectorConsolidatedPipelines() {
+  try {
+    Logger.log('[Director Pipelines] Updating all director consolidated pipelines...');
+    const startTime = new Date();
+    
+    // Load configuration
+    const config = loadConfiguration();
+    const directors = getDirectorConfig();
+    
+    if (directors.length === 0) {
+      Logger.log('[Director Pipelines] No directors configured, skipping');
+      return { success: true, directorCount: 0 };
+    }
+    
+    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    
+    // Update each director's tab
+    let successCount = 0;
+    directors.forEach(director => {
+      Logger.log(`  Processing ${director.type} - ${director.name} (${director.team} team)...`);
+      
+      try {
+        updateDirectorConsolidatedPipeline(director, config, controlSheet);
+        successCount++;
+      } catch (e) {
+        Logger.log(`    Error updating ${director.name}: ${e.message}`);
+      }
+    });
+    
+    const duration = (new Date() - startTime) / 1000;
+    Logger.log(`[Director Pipelines] Complete: ${successCount}/${directors.length} directors updated (${duration}s)`);
+    
+    return {
+      success: true,
+      directorCount: successCount,
+      duration: duration
+    };
+    
+  } catch (error) {
+    Logger.log(`[Director Pipelines] Error: ${error.message}`);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Updates a single director's consolidated pipeline tab
+ * @param {Object} director - Director config
+ * @param {Object} config - Main configuration
+ * @param {Spreadsheet} controlSheet - Control sheet
+ */
+function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
+  // Get or create director's tab
+  let sheet = controlSheet.getSheetByName(director.tabName);
+  if (!sheet) {
+    sheet = controlSheet.insertSheet(director.tabName);
+    Logger.log(`    Created tab: ${director.tabName}`);
+  }
+  
+  // Step 1: Capture director's existing highlighting (by Deal ID)
+  const preservedHighlighting = captureDirectorHighlighting(sheet);
+  
+  // Step 2: Get all AEs from this director's team
+  const teamAEs = config.salespeople.filter(p => p.team === director.team);
+  Logger.log(`    Found ${teamAEs.length} AEs in ${director.team} team`);
+  
+  if (teamAEs.length === 0) {
+    Logger.log(`    No AEs in team, skipping`);
+    return;
+  }
+  
+  // Step 3: Fetch deals from HubSpot for this team
+  const allDeals = [];
+  teamAEs.forEach(person => {
+    try {
+      const deals = fetchDealsForAE(person);
+      deals.forEach(deal => {
+        deal.ownerName = person.name;
+      });
+      allDeals.push(...deals);
+    } catch (e) {
+      Logger.log(`      Error fetching deals for ${person.name}: ${e.message}`);
+    }
+  });
+  
+  Logger.log(`    Fetched ${allDeals.length} deals from team`);
+  
+  // Step 4: Collect notes from all individual AE sheets
+  const notesMap = collectNotesFromTeamAEs(teamAEs);
+  
+  // Step 5: Build consolidated data array
+  const dataArray = buildConsolidatedPipelineDataArray(allDeals, notesMap);
+  
+  // Step 6: Write data to director's tab
+  sheet.clear();
+  writeConsolidatedPipelineData(sheet, dataArray);
+  
+  // Step 7: Apply formatting and restore highlighting
+  applyConsolidatedPipelineFormatting(sheet, dataArray, preservedHighlighting);
+  
+  Logger.log(`    ✓ ${director.tabName} updated`);
+}
+
+/**
+ * Captures director's highlighting by Deal ID
+ * @param {Sheet} sheet - Director's tab
+ * @returns {Map} Map of Deal ID to highlighting data
+ */
+function captureDirectorHighlighting(sheet) {
+  const highlightMap = new Map();
+  
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return highlightMap;
+  
+  const lastCol = sheet.getLastColumn();
+  
+  // Read Deal IDs (column A, hidden)
+  const dealIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  
+  // Read backgrounds and font colors for entire rows
+  const backgrounds = sheet.getRange(2, 1, lastRow - 1, lastCol).getBackgrounds();
+  const fontColors = sheet.getRange(2, 1, lastRow - 1, lastCol).getFontColors();
+  
+  dealIds.forEach((row, index) => {
+    const dealId = row[0]?.toString();
+    if (!dealId) return;
+    
+    highlightMap.set(dealId, {
+      backgrounds: backgrounds[index],
+      fontColors: fontColors[index]
+    });
+  });
+  
+  Logger.log(`    Captured highlighting for ${highlightMap.size} deals`);
+  return highlightMap;
+}
+
+/**
+ * Collects notes from all team AEs' individual sheets
+ * @param {Array} teamAEs - Array of AE configs
+ * @returns {Map} Map of Deal ID to notes
+ */
+function collectNotesFromTeamAEs(teamAEs) {
+  const notesMap = new Map();
+  
+  teamAEs.forEach(person => {
+    try {
+      if (!person.sheetId) {
+        Logger.log(`      No sheet ID for ${person.name}, skipping`);
+        return;
+      }
+      
+      const aeSheet = SpreadsheetApp.openById(person.sheetId);
+      const pipelineSheet = aeSheet.getSheetByName(TAB_PIPELINE);
+      
+      if (!pipelineSheet) {
+        Logger.log(`      No Pipeline Review tab for ${person.name}, skipping`);
+        return;
+      }
+      
+      const lastRow = pipelineSheet.getLastRow();
+      if (lastRow < 2) return;
+      
+      // Read Deal IDs and Notes
+      const data = pipelineSheet.getRange(2, 1, lastRow - 1, pipelineSheet.getLastColumn()).getValues();
+      
+      data.forEach(row => {
+        const dealId = row[0]?.toString();
+        const notes = row[row.length - 1]; // Last column is Notes
+        
+        if (dealId && notes) {
+          notesMap.set(dealId, notes);
+        }
+      });
+      
+    } catch (e) {
+      Logger.log(`      Error collecting notes from ${person.name}: ${e.message}`);
+    }
+  });
+  
+  Logger.log(`    Collected notes for ${notesMap.size} deals`);
+  return notesMap;
+}
+
+/**
+ * Builds consolidated pipeline data array
+ * @param {Array} allDeals - All deals from team
+ * @param {Map} notesMap - Notes collected from AEs
+ * @returns {Array} 2D data array
+ */
+function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
+  const dataArray = [];
+  
+  // Headers (same as individual AE + Owner column at beginning)
+  const headers = [
+    'Deal ID', // Hidden
+    'Deal Name',
+    'Owner', // AE Name
+    'Stage',
+    'Last Activity',
+    'Next Activity',
+    'Why Not Purchase Today',
+    'Call Quality Score',
+    'Questioning',
+    'Building Value',
+    'Funding Options',
+    'Addressing Objections',
+    'Closing the Deal',
+    'Ask for Referral',
+    'Notes' // From AE (read-only for director)
+  ];
+  
+  dataArray.push(headers);
+  
+  // Data rows
+  allDeals.forEach(deal => {
+    const dealId = deal.id.toString();
+    const properties = deal.properties || {};
+    
+    const row = [
+      dealId,
+      properties.dealname || '',
+      deal.ownerName || '',
+      properties.dealstage || '',
+      formatDate(properties.notes_last_updated),
+      formatDate(properties.notes_next_activity_date),
+      properties.why_not_purchase_today_ || '',
+      properties.call_quality_score || '',
+      properties.s_discovery_a_questioning_technique__details || '',
+      properties.s_building_value_a_tailoring_features_and_benefits__details || '',
+      properties.s_funding_options__a_identifying_funding_needs__details || '',
+      properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles__details || '',
+      properties.s_closing_the_deal__a_assuming_the_sale__details || '',
+      properties.s_closing_the_deal__a_ask_for_referral__details || '',
+      notesMap.get(dealId) || '' // Notes from AE
+    ];
+    
+    dataArray.push(row);
+  });
+  
+  return dataArray;
+}
+
+/**
+ * Writes consolidated pipeline data to director's tab
+ * @param {Sheet} sheet - Director's tab
+ * @param {Array} dataArray - 2D data array
+ */
+function writeConsolidatedPipelineData(sheet, dataArray) {
+  if (dataArray.length === 0) return;
+  
+  // Write all data
+  sheet.getRange(1, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+  
+  // Add hyperlinks for Deal Name column (Column B)
+  for (let i = 2; i <= dataArray.length; i++) {
+    const dealId = sheet.getRange(i, 1).getValue();
+    if (dealId) {
+      const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
+      const richText = SpreadsheetApp.newRichTextValue()
+        .setText(sheet.getRange(i, 2).getValue())
+        .setLinkUrl(dealUrl)
+        .build();
+      sheet.getRange(i, 2).setRichTextValue(richText);
+    }
+  }
+}
+
+/**
+ * Applies formatting to consolidated pipeline and restores highlighting
+ * @param {Sheet} sheet - Director's tab
+ * @param {Array} dataArray - 2D data array
+ * @param {Map} highlightMap - Preserved highlighting
+ */
+function applyConsolidatedPipelineFormatting(sheet, dataArray, highlightMap) {
+  // Format header row
+  const headerRange = sheet.getRange(1, 1, 1, dataArray[0].length);
+  headerRange
+    .setFontWeight('bold')
+    .setBackground('#4285F4')
+    .setFontColor('#FFFFFF')
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  
+  sheet.setFrozenRows(1);
+  sheet.setFrozenColumns(3); // Freeze Deal ID, Deal Name, Owner
+  
+  // Hide Deal ID column
+  sheet.hideColumns(1);
+  
+  // Apply call quality color coding
+  applyCallQualityFormattingToConsolidated(sheet, dataArray);
+  
+  // Restore director's highlighting (by Deal ID)
+  restoreDirectorHighlighting(sheet, dataArray, highlightMap);
+}
+
+/**
+ * Applies call quality color coding to consolidated pipeline
+ * @param {Sheet} sheet - Director's tab
+ * @param {Array} dataArray - 2D data array
+ */
+function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
+  const headers = dataArray[0];
+  
+  // Find call quality column indices
+  const callQualityHeaders = [
+    'Call Quality Score',
+    'Questioning',
+    'Building Value',
+    'Funding Options',
+    'Addressing Objections',
+    'Closing the Deal',
+    'Ask for Referral'
+  ];
+  
+  callQualityHeaders.forEach(header => {
+    const colIndex = headers.indexOf(header) + 1;
+    if (colIndex === 0) return;
+    
+    for (let row = 2; row <= dataArray.length; row++) {
+      const value = sheet.getRange(row, colIndex).getValue();
+      if (value === '' || value === null) continue;
+      
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) continue;
+      
+      let color = SCORE_COLORS.GREEN;
+      if (numValue <= 2) {
+        color = SCORE_COLORS.RED;
+      } else if (numValue === 3) {
+        color = SCORE_COLORS.YELLOW;
+      }
+      
+      sheet.getRange(row, colIndex).setBackground(color);
+    }
+  });
+}
+
+/**
+ * Restores director's highlighting by Deal ID
+ * @param {Sheet} sheet - Director's tab
+ * @param {Array} dataArray - 2D data array
+ * @param {Map} highlightMap - Preserved highlighting
+ */
+function restoreDirectorHighlighting(sheet, dataArray, highlightMap) {
+  if (highlightMap.size === 0) return;
+  
+  for (let row = 2; row <= dataArray.length; row++) {
+    const dealId = sheet.getRange(row, 1).getValue()?.toString();
+    if (!dealId) continue;
+    
+    const highlighting = highlightMap.get(dealId);
+    if (!highlighting) continue;
+    
+    const rowRange = sheet.getRange(row, 1, 1, dataArray[0].length);
+    
+    if (highlighting.backgrounds) {
+      rowRange.setBackgrounds([highlighting.backgrounds]);
+    }
+    
+    if (highlighting.fontColors) {
+      rowRange.setFontColors([highlighting.fontColors]);
+    }
+  }
+  
+  Logger.log(`    Restored highlighting for ${highlightMap.size} deals`);
+}
+

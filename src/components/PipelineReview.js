@@ -1,135 +1,70 @@
 /**
  * Pipeline Review Component
  * 
- * Displays deal pipeline data from HubSpot with call quality scores
- * Includes manual notes preservation and format preservation across refreshes
+ * Displays pipeline data from HubSpot for individual Account Executives
+ * - Fetches deals from HubSpot (with call quality scores)
+ * - Preserves manual notes across refreshes (by Deal ID)
+ * - Applies highlighting from Director (bi-directional sync)
+ * - Color-codes call quality scores (red-yellow-green)
  * 
- * Note: Uses TAB_PIPELINE constant from SheetProvisioner.js
+ * Tab Name: 📊 Pipeline Review
  */
 
 // ============================================================================
-// FIELD CONFIGURATION
+// CONSTANTS
 // ============================================================================
 
-// Stage mapping (ID to Name)
-const STAGE_MAP = {
-  '90284257': 'Create Curiosity',
-  '90284258': 'Needs Analysis',
-  '90284259': 'Demonstrating Value',
-  '90284260': 'Partnership Proposal',
-  '90284261': 'Negotiation',
-  '90284262': 'Partnership Confirmed'
+const TAB_PIPELINE = '📊 Pipeline Review';
+
+// Colors for call quality scoring (same as Enrollment Tracker)
+const SCORE_COLORS = {
+  RED: '#f4cccc',      // 0-2: Red
+  YELLOW: '#fff2cc',   // 3: Yellow
+  GREEN: '#d9ead3'     // 4-5: Green
 };
 
-// Core deal fields (always visible)
-const CORE_FIELDS = [
+// HubSpot properties to fetch
+const PIPELINE_PROPERTIES = [
+  'dealname',
+  'dealstage',
+  'hubspot_owner_id',
+  'notes_last_updated',
+  'notes_next_activity_date',
+  'why_not_purchase_today_',
+  'createdate',
+  'closedate',
+  'hs_deal_stage_probability',
+  // Call Quality properties
+  'call_quality_score',
+  's_discovery_a_questioning_technique__details',
+  's_building_value_a_tailoring_features_and_benefits__details',
+  's_funding_options__a_identifying_funding_needs__details',
+  's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles__details',
+  's_closing_the_deal__a_assuming_the_sale__details',
+  's_closing_the_deal__a_ask_for_referral__details'
+];
+
+// Field configuration for Pipeline Review
+const PIPELINE_FIELDS = [
+  { property: 'dealId', header: 'Deal ID', hidden: true, type: 'text' },
   { property: 'dealname', header: 'Deal Name', hyperlink: true, type: 'text' },
-  { property: 'dealstage', header: 'Stage', type: 'text', useMapping: true },
+  { property: 'dealstage', header: 'Stage', type: 'text' },
   { property: 'notes_last_updated', header: 'Last Activity', type: 'date' },
   { property: 'notes_next_activity_date', header: 'Next Activity', type: 'date' },
-  { property: 'next_task_name', header: 'Next Task Name', enabled: false, type: 'text' }, // Future: needs API permissions
   { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' },
-  { property: 'sales_note_to_lc', header: 'calls history', type: 'text' }
+  { property: 'call_quality_score', header: 'Call Quality Score', colorCode: true, type: 'number' },
+  { property: 's_discovery_a_questioning_technique__details', header: 'Questioning', colorCode: true, type: 'number' },
+  { property: 's_building_value_a_tailoring_features_and_benefits__details', header: 'Building Value', colorCode: true, type: 'number' },
+  { property: 's_funding_options__a_identifying_funding_needs__details', header: 'Funding Options', colorCode: true, type: 'number' },
+  { property: 's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles__details', header: 'Addressing Objections', colorCode: true, type: 'number' },
+  { property: 's_closing_the_deal__a_assuming_the_sale__details', header: 'Closing the Deal', colorCode: true, type: 'number' },
+  { property: 's_closing_the_deal__a_ask_for_referral__details', header: 'Ask for Referral', colorCode: true, type: 'number' }
 ];
 
-// Call quality score fields (color-coded red-yellow-green)
-const CALL_QUALITY_FIELDS = [
-  { property: 's_discovery_a_questioning_technique', header: 'DISCOVERY', colorCode: true, type: 'number' },
-  { property: 's_discovery_a_empathy__rapport_building_and_active_listening', header: 'TRUST', colorCode: true, type: 'number' },
-  { property: 's_building_value_a_recap_of_students_needs', header: 'RECAP NEEDS', colorCode: true, type: 'number' },
-  { property: 's_building_value_a_tailoring_features_and_benefits', header: 'TAILORING FEATURES', colorCode: true, type: 'number' },
-  { property: 's_gaining_an_affirmation_and_program_requirements__a_gaining_affirmation', header: 'PROGRAM ALIGNMENT', colorCode: true, type: 'number' },
-  { property: 's_gaining_an_affirmation_and_program_requirements__a_essential_program_requirements', header: 'REQUIREMENTS', colorCode: true, type: 'number' },
-  { property: 's_funding_options__a_identifying_funding_needs', header: 'FUNDING NEEDS', colorCode: true, type: 'number' },
-  { property: 's_funding_options__a_presenting_funding_solutions', header: 'FUNDING SOLUTION', colorCode: true, type: 'number' },
-  { property: 's_funding_options__a_securing_financial_commitment', header: 'FUNDING COMMITMENT', colorCode: true, type: 'number' },
-  { property: 's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles', header: 'OBJECTIONS', colorCode: true, type: 'number' },
-  { property: 's_closing_the_deal__a_creating_a_sense_of_urgency', header: 'URGENCY', colorCode: true, type: 'number' },
-  { property: 's_closing_the_deal__a_assuming_the_sale', header: 'ASSUME SALE', colorCode: true, type: 'number' },
-  { property: 's_closing_the_deal__a_ask_for_referral', header: 'REFERRAL', colorCode: true, type: 'number' }
-];
-
-// Manual note columns (editable, preserved across refreshes)
+// Manual editable columns (appended after HubSpot fields)
 const MANUAL_FIELDS = [
-  { header: 'Note 1', editable: true, preserve: true },
-  { header: 'Note 2', editable: true, preserve: true }
+  { header: 'Notes', editable: true, preserve: true }
 ];
-
-// Director columns (set by director, synced from Director Hub)
-const DIRECTOR_FIELDS = [
-  { header: 'Director Priority', preserve: true },
-  { header: 'Director Note', preserve: true }
-];
-
-/**
- * Gets all enabled properties to fetch from HubSpot
- * @returns {Array<string>} Array of property names
- */
-function getPipelineReviewProperties() {
-  const properties = [];
-  
-  // Add core fields (only enabled ones)
-  CORE_FIELDS.forEach(field => {
-    if (field.enabled !== false) {
-      properties.push(field.property);
-    }
-  });
-  
-  // Add call quality fields
-  CALL_QUALITY_FIELDS.forEach(field => {
-    properties.push(field.property);
-  });
-  
-  // Add standard fields always needed
-  if (!properties.includes('hubspot_owner_id')) {
-    properties.push('hubspot_owner_id');
-  }
-  
-  // Add GTC filter properties (for filtering, not displayed)
-  if (!properties.includes('ability_to_pay')) {
-    properties.push('ability_to_pay');
-  }
-  if (!properties.includes('warm_prospects')) {
-    properties.push('warm_prospects');
-  }
-  
-  return properties;
-}
-
-/**
- * Gets all column headers in order
- * @returns {Array<string>} Array of header names
- */
-function getPipelineReviewHeaders() {
-  const headers = [];
-  
-  // First 5 core fields (A-E)
-  for (let i = 0; i < 5 && i < CORE_FIELDS.length; i++) {
-    headers.push(CORE_FIELDS[i].header);
-  }
-  
-  // Director fields at positions 6-7 (F-G)
-  DIRECTOR_FIELDS.forEach(field => {
-    headers.push(field.header);
-  });
-  
-  // Remaining core fields (from position 6 onwards)
-  for (let i = 5; i < CORE_FIELDS.length; i++) {
-    headers.push(CORE_FIELDS[i].header);
-  }
-  
-  // Call quality fields
-  CALL_QUALITY_FIELDS.forEach(field => {
-    headers.push(field.header);
-  });
-  
-  // Manual fields
-  MANUAL_FIELDS.forEach(field => {
-    headers.push(field.header);
-  });
-  
-  return headers;
-}
 
 // ============================================================================
 // MAIN PIPELINE REVIEW FUNCTION
@@ -138,7 +73,7 @@ function getPipelineReviewHeaders() {
 /**
  * Updates the Pipeline Review tab for a salesperson
  * @param {Spreadsheet} individualSheet - The salesperson's individual sheet
- * @param {Object} person - Person object {name, email}
+ * @param {Object} person - Person object {name, email, hubspotUserId, team}
  * @returns {Object} Update result
  */
 function updatePipelineReview(individualSheet, person) {
@@ -152,39 +87,27 @@ function updatePipelineReview(individualSheet, person) {
       throw new Error(`Pipeline Review tab not found for ${person.name}`);
     }
     
-    // Step 1: Capture existing notes and formatting BEFORE clearing
-    Logger.log('  Step 1: Capturing existing notes and formatting...');
-    const preserved = capturePreservedData(sheet);
+    // Step 1: Capture existing notes and highlighting (by Deal ID)
+    Logger.log('  Step 1: Capturing notes and highlighting...');
+    const preservedData = capturePreservedData(sheet);
     
     // Step 2: Fetch deals from HubSpot
     Logger.log('  Step 2: Fetching deals from HubSpot...');
-    const properties = getPipelineReviewProperties();
-    const options = {};
-    
-    // Pass HubSpot User ID if available
-    if (person.hubspotUserId && person.hubspotUserId !== '') {
-      options.hubspotUserId = person.hubspotUserId;
-    }
-    
-    const deals = fetchDealsByOwner(person.email, properties, options);
+    const deals = fetchDealsForAE(person);
     Logger.log(`  Found ${deals.length} deals`);
     
-    // Step 3: Build data array
-    Logger.log('  Step 3: Building data array...');
-    const { dataArray, urlMap, dealIdMap } = buildPipelineDataArray(deals);
+    // Step 3: Build sheet data
+    Logger.log('  Step 3: Building sheet data...');
+    const dataArray = buildPipelineDataArray(deals, preservedData);
     
     // Step 4: Clear and write data
     Logger.log('  Step 4: Writing data to sheet...');
-    sheet.clear();
-    writeDataToSheet(sheet, dataArray, urlMap);
+    clearSheetData(sheet);
+    writeDataToSheet(sheet, dataArray);
     
     // Step 5: Apply formatting
     Logger.log('  Step 5: Applying formatting...');
-    applyPipelineFormatting(sheet, dataArray.length - 1); // -1 for header
-    
-    // Step 6: Restore preserved notes and formatting
-    Logger.log('  Step 6: Restoring preserved data...');
-    restorePreservedData(sheet, preserved, dealIdMap);
+    applyPipelineFormatting(sheet, dataArray, preservedData);
     
     const duration = (new Date() - startTime) / 1000;
     Logger.log(`[Pipeline Review] Complete for ${person.name} (${duration}s)`);
@@ -205,97 +128,199 @@ function updatePipelineReview(individualSheet, person) {
 }
 
 // ============================================================================
+// DATA CAPTURE (Preserve Notes & Highlighting)
+// ============================================================================
+
+/**
+ * Captures preserved data (notes and highlighting) by Deal ID
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @returns {Map} Map of Deal ID to preserved data
+ */
+function capturePreservedData(sheet) {
+  const preservedMap = new Map();
+  
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return preservedMap; // Empty sheet
+  }
+  
+  const lastCol = sheet.getLastColumn();
+  
+  // Read all data
+  const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  const backgrounds = sheet.getRange(2, 1, lastRow - 1, lastCol).getBackgrounds();
+  const fontColors = sheet.getRange(2, 1, lastRow - 1, lastCol).getFontColors();
+  
+  data.forEach((row, index) => {
+    const dealId = row[0]?.toString(); // Column A is Deal ID
+    if (!dealId) return;
+    
+    // Find notes column (last column)
+    const notesColumnIndex = PIPELINE_FIELDS.length; // Notes is after all HubSpot fields
+    const notes = row[notesColumnIndex] || '';
+    
+    preservedMap.set(dealId, {
+      notes: notes,
+      backgrounds: backgrounds[index],
+      fontColors: fontColors[index]
+    });
+  });
+  
+  Logger.log(`  Captured data for ${preservedMap.size} deals`);
+  return preservedMap;
+}
+
+// ============================================================================
+// HUBSPOT DATA FETCHING
+// ============================================================================
+
+/**
+ * Fetches deals from HubSpot for a specific AE
+ * @param {Object} person - Person object
+ * @returns {Array} Array of deals
+ */
+function fetchDealsForAE(person) {
+  const token = getHubSpotToken();
+  
+  // Build filter for this AE's deals
+  const filterGroups = [];
+  
+  // Filter by email or HubSpot User ID
+  if (person.hubspotUserId && person.hubspotUserId !== '') {
+    filterGroups.push({
+      filters: [{
+        propertyName: 'hubspot_owner_id',
+        operator: 'EQ',
+        value: person.hubspotUserId
+      }]
+    });
+  } else {
+    // Fallback: filter by email (if HubSpot User ID not available)
+    Logger.log(`  Warning: No HubSpot User ID for ${person.name}, using email filter`);
+    filterGroups.push({
+      filters: [{
+        propertyName: 'hubspot_owner_email',
+        operator: 'EQ',
+        value: person.email
+      }]
+    });
+  }
+  
+  // Fetch from HubSpot
+  const url = 'https://api.hubapi.com/crm/v3/objects/deals/search';
+  
+  const payload = {
+    filterGroups: filterGroups,
+    properties: PIPELINE_PROPERTIES,
+    limit: 100
+  };
+  
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode !== 200) {
+      throw new Error(`HubSpot API error: ${responseCode} - ${response.getContentText()}`);
+    }
+    
+    const result = JSON.parse(response.getContentText());
+    return result.results || [];
+    
+  } catch (error) {
+    Logger.log(`  Error fetching deals: ${error.message}`);
+    return [];
+  }
+}
+
+// ============================================================================
 // DATA BUILDING
 // ============================================================================
 
 /**
- * Builds the data array for Pipeline Review sheet
- * @param {Array<Object>} deals - Raw deals from HubSpot
- * @returns {Object} {dataArray, urlMap, dealIdMap}
+ * Builds data array for sheet from deals and preserved data
+ * @param {Array} deals - HubSpot deals
+ * @param {Map} preservedMap - Preserved notes and highlighting
+ * @returns {Array} 2D array for sheet
  */
-function buildPipelineDataArray(deals) {
+function buildPipelineDataArray(deals, preservedMap) {
   const dataArray = [];
-  const urlMap = {}; // Map of row index to URL for hyperlinks
-  const dealIdMap = {}; // Map of row index to Deal ID (for preservation)
   
-  // Headers
-  dataArray.push(getPipelineReviewHeaders());
+  // Header row
+  const headers = PIPELINE_FIELDS.map(f => f.header).concat(MANUAL_FIELDS.map(f => f.header));
+  dataArray.push(headers);
   
   // Data rows
-  deals.forEach((deal, index) => {
+  deals.forEach(deal => {
+    const dealId = deal.id.toString();
+    const properties = deal.properties || {};
+    const preserved = preservedMap.get(dealId) || {};
+    
     const row = [];
-    const rowIndex = index + 2; // +2 because row 1 is header, index starts at 0
     
-    // Store Deal ID for preservation (not displayed in sheet)
-    dealIdMap[rowIndex] = deal.id;
-    
-    // First 5 core fields (A-E)
-    for (let i = 0; i < 5 && i < CORE_FIELDS.length; i++) {
-      const field = CORE_FIELDS[i];
-      if (field.property === 'dealname') {
-        // Deal Name - will be hyperlinked
-        const dealName = extractDealProperty(deal, field.property);
-        row.push(dealName);
-        urlMap[rowIndex] = buildDealUrl(deal.id);
-      } else if (field.property === 'dealstage' && field.useMapping) {
-        // Stage - map ID to name
-        const stageId = extractDealProperty(deal, field.property);
-        row.push(STAGE_MAP[stageId] || stageId);
-      } else if (field.type === 'date') {
-        // Date fields
-        row.push(extractDateProperty(deal, field.property));
-      } else if (field.enabled === false) {
-        // Disabled field (Next Task Name) - leave blank
-        row.push('');
-      } else {
-        // Regular text field
-        row.push(extractDealProperty(deal, field.property));
+    // HubSpot fields
+    PIPELINE_FIELDS.forEach(field => {
+      let value = properties[field.property] || '';
+      
+      // Special handling for Deal ID
+      if (field.property === 'dealId') {
+        value = dealId;
       }
-    }
-    
-    // Director fields at positions 6-7 (F-G) - blank initially, synced from Director Hub
-    DIRECTOR_FIELDS.forEach(() => {
-      row.push('');
-    });
-    
-    // Remaining core fields (from position 6 onwards)
-    for (let i = 5; i < CORE_FIELDS.length; i++) {
-      const field = CORE_FIELDS[i];
-      if (field.property === 'dealname') {
-        // Deal Name - will be hyperlinked
-        const dealName = extractDealProperty(deal, field.property);
-        row.push(dealName);
-        urlMap[rowIndex] = buildDealUrl(deal.id);
-      } else if (field.property === 'dealstage' && field.useMapping) {
-        // Stage - map ID to name
-        const stageId = extractDealProperty(deal, field.property);
-        row.push(STAGE_MAP[stageId] || stageId);
-      } else if (field.type === 'date') {
-        // Date fields
-        row.push(extractDateProperty(deal, field.property));
-      } else if (field.enabled === false) {
-        // Disabled field (Next Task Name) - leave blank
-        row.push('');
-      } else {
-        // Regular text field
-        row.push(extractDealProperty(deal, field.property));
+      
+      // Format dates
+      if (field.type === 'date' && value) {
+        value = formatDate(value);
       }
-    }
-    
-    // Call quality fields (numeric)
-    CALL_QUALITY_FIELDS.forEach(field => {
-      row.push(extractNumericProperty(deal, field.property));
+      
+      row.push(value);
     });
     
-    // Manual fields (blank initially, will be restored if preserved)
-    MANUAL_FIELDS.forEach(() => {
-      row.push('');
-    });
+    // Manual fields (notes) - restored from preserved data
+    row.push(preserved.notes || '');
     
     dataArray.push(row);
   });
   
-  return { dataArray, urlMap, dealIdMap };
+  return dataArray;
+}
+
+/**
+ * Formats a date value to yyyy-MM-dd
+ * @param {string|number} dateValue - Date value from HubSpot
+ * @returns {string} Formatted date
+ */
+function formatDate(dateValue) {
+  if (!dateValue) return '';
+  
+  try {
+    let date;
+    if (typeof dateValue === 'string') {
+      date = new Date(dateValue);
+    } else if (typeof dateValue === 'number') {
+      date = new Date(dateValue);
+    } else {
+      return '';
+    }
+    
+    if (isNaN(date.getTime())) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return '';
+  }
 }
 
 // ============================================================================
@@ -303,271 +328,159 @@ function buildPipelineDataArray(deals) {
 // ============================================================================
 
 /**
- * Writes data to the Pipeline Review sheet
- * @param {Sheet} sheet - The sheet to write to
- * @param {Array<Array>} dataArray - 2D array of data
- * @param {Object} urlMap - Map of row index to URL for hyperlinks
+ * Clears sheet data (keeps formatting)
+ * @param {Sheet} sheet - Pipeline Review sheet
  */
-function writeDataToSheet(sheet, dataArray, urlMap) {
-  if (dataArray.length === 0) {
-    return;
+function clearSheetData(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clear();
   }
-  
-  // Write all data at once
-  const range = sheet.getRange(1, 1, dataArray.length, dataArray[0].length);
-  range.setValues(dataArray);
-  
-  // Apply hyperlinks to Deal Name column (Column A) - batch operation
-  const dealNameCol = 1; // Column A
-  const rowCount = dataArray.length - 1; // Exclude header
-  
-  if (rowCount > 0 && Object.keys(urlMap).length > 0) {
-    // Build rich text values array for all rows
-    const richTextValues = [];
-    
-    for (let i = 0; i < rowCount; i++) {
-      const rowIndex = i + 2; // +2 for header and 0-based
-      const dealName = dataArray[i + 1][0]; // +1 to skip header row
-      const url = urlMap[rowIndex];
-      
-      if (url && dealName) {
-        const richText = SpreadsheetApp.newRichTextValue()
-          .setText(dealName)
-          .setLinkUrl(url)
-          .build();
-        richTextValues.push([richText]);
-      } else {
-        richTextValues.push([dealName]); // Plain text if no URL
-      }
-    }
-    
-    // Apply all hyperlinks at once
-    sheet.getRange(2, dealNameCol, rowCount, 1).setRichTextValues(richTextValues);
-  }
+  sheet.clearConditionalFormatRules();
 }
 
 /**
- * Applies formatting to Pipeline Review sheet
- * @param {Sheet} sheet - The sheet to format
- * @param {number} dataRowCount - Number of data rows (excluding header)
+ * Writes data array to sheet
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @param {Array} dataArray - 2D data array
  */
-function applyPipelineFormatting(sheet, dataRowCount) {
-  if (dataRowCount < 1) {
-    return;
-  }
+function writeDataToSheet(sheet, dataArray) {
+  if (dataArray.length === 0) return;
   
+  // Write all data
+  sheet.getRange(1, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
+  
+  // Add hyperlinks for Deal Name column
+  const dealNameColIndex = PIPELINE_FIELDS.findIndex(f => f.property === 'dealname') + 1;
+  const dealIdColIndex = 1; // Deal ID is always column A
+  
+  for (let i = 2; i <= dataArray.length; i++) {
+    const dealId = sheet.getRange(i, dealIdColIndex).getValue();
+    if (dealId) {
+      const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
+      const richText = SpreadsheetApp.newRichTextValue()
+        .setText(sheet.getRange(i, dealNameColIndex).getValue())
+        .setLinkUrl(dealUrl)
+        .build();
+      sheet.getRange(i, dealNameColIndex).setRichTextValue(richText);
+    }
+  }
+}
+
+// ============================================================================
+// FORMATTING
+// ============================================================================
+
+/**
+ * Applies formatting to Pipeline Review sheet
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @param {Array} dataArray - 2D data array
+ * @param {Map} preservedMap - Preserved highlighting by Deal ID
+ */
+function applyPipelineFormatting(sheet, dataArray, preservedMap) {
   // Format header row
-  const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+  const headerRange = sheet.getRange(1, 1, 1, dataArray[0].length);
   headerRange
     .setFontWeight('bold')
     .setBackground('#4285F4')
     .setFontColor('#FFFFFF')
-    .setHorizontalAlignment('center');
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
   
-  // Freeze header row
   sheet.setFrozenRows(1);
   
-  // Auto-resize columns
-  for (let col = 1; col <= sheet.getLastColumn(); col++) {
-    sheet.autoResizeColumn(col);
-  }
+  // Hide Deal ID column
+  sheet.hideColumns(1);
   
-  // Set width and text wrapping for specific columns
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const whyNotPurchaseCol = headers.indexOf('Why Not Purchase Today') + 1;
-  const callsHistoryCol = headers.indexOf('calls history') + 1;
+  // Apply call quality color coding
+  applyCallQualityFormatting(sheet, dataArray);
   
-  if (whyNotPurchaseCol > 0) {
-    sheet.setColumnWidth(whyNotPurchaseCol, 250); // 250 pixels width
-    if (dataRowCount > 0) {
-      sheet.getRange(2, whyNotPurchaseCol, dataRowCount, 1).setWrap(true);
-    }
-  }
+  // Apply preserved highlighting (from Director)
+  applyPreservedHighlighting(sheet, dataArray, preservedMap);
   
-  if (callsHistoryCol > 0) {
-    sheet.setColumnWidth(callsHistoryCol, 250); // 250 pixels width
-    if (dataRowCount > 0) {
-      sheet.getRange(2, callsHistoryCol, dataRowCount, 1).setWrap(true);
-    }
-  }
-  
-  // Apply conditional formatting to call quality columns
-  applyCallQualityFormatting(sheet, dataRowCount);
+  // Protect HubSpot data columns (all except Notes)
+  protectDataColumns(sheet, dataArray[0].length);
 }
 
 /**
- * Applies red-yellow-green conditional formatting to call quality columns
- * @param {Sheet} sheet - The sheet to format
- * @param {number} dataRowCount - Number of data rows
+ * Applies red-yellow-green color coding to call quality columns
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @param {Array} dataArray - 2D data array
  */
-function applyCallQualityFormatting(sheet, dataRowCount) {
-  if (dataRowCount < 1) {
-    return;
-  }
+function applyCallQualityFormatting(sheet, dataArray) {
+  // Find call quality column indices
+  const callQualityFields = PIPELINE_FIELDS.filter(f => f.colorCode);
   
-  // Find column indices for call quality fields
-  const headers = getPipelineReviewHeaders();
-  const rules = [];
-  
-  CALL_QUALITY_FIELDS.forEach(field => {
-    if (field.colorCode) {
-      const colIndex = headers.indexOf(field.header) + 1; // +1 for 1-based indexing
+  callQualityFields.forEach(field => {
+    const colIndex = PIPELINE_FIELDS.findIndex(f => f.property === field.property) + 1;
+    
+    // Apply to data rows (skip header)
+    for (let row = 2; row <= dataArray.length; row++) {
+      const value = sheet.getRange(row, colIndex).getValue();
       
-      if (colIndex > 0) {
-        const range = sheet.getRange(2, colIndex, dataRowCount, 1);
-        
-        // Create gradient rule: 0-5 scale with red (0) -> yellow (2.5) -> green (5)
-        const rule = SpreadsheetApp.newConditionalFormatRule()
-          .setGradientMinpointWithValue(
-            '#F4C7C3', // Light red
-            SpreadsheetApp.InterpolationType.NUMBER,
-            '0'
-          )
-          .setGradientMidpointWithValue(
-            '#FCE8B2', // Light yellow
-            SpreadsheetApp.InterpolationType.NUMBER,
-            '2.5'
-          )
-          .setGradientMaxpointWithValue(
-            '#B7E1CD', // Light green
-            SpreadsheetApp.InterpolationType.NUMBER,
-            '5'
-          )
-          .setRanges([range])
-          .build();
-        
-        rules.push(rule);
+      if (value === '' || value === null) continue;
+      
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) continue;
+      
+      let color = SCORE_COLORS.GREEN;
+      if (numValue <= 2) {
+        color = SCORE_COLORS.RED;
+      } else if (numValue === 3) {
+        color = SCORE_COLORS.YELLOW;
       }
+      
+      sheet.getRange(row, colIndex).setBackground(color);
     }
   });
-  
-  // Apply all rules at once
-  if (rules.length > 0) {
-    sheet.setConditionalFormatRules(rules);
-    Logger.log(`  Applied conditional formatting to ${rules.length} call quality columns`);
-  }
-}
-
-// ============================================================================
-// DATA PRESERVATION
-// ============================================================================
-
-/**
- * Captures notes and formatting before refresh
- * @param {Sheet} sheet - The Pipeline Review sheet
- * @returns {Object} Preserved data indexed by row number (temporary, will map to Deal ID)
- */
-function capturePreservedData(sheet) {
-  const preserved = {};
-  
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    return preserved; // No data to preserve
-  }
-  
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const dealNameCol = headers.indexOf('Deal Name') + 1;
-  const note1Col = headers.indexOf('Note 1') + 1;
-  const note2Col = headers.indexOf('Note 2') + 1;
-  const dirPriorityCol = headers.indexOf('Director Priority') + 1;
-  const dirNoteCol = headers.indexOf('Director Note') + 1;
-  
-  // Read all data
-  const dataRange = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn());
-  const values = dataRange.getValues();
-  const backgrounds = dataRange.getBackgrounds();
-  const fontColors = dataRange.getFontColors();
-  const fontWeights = dataRange.getFontWeights();
-  
-  // Capture by Deal Name
-  for (let i = 0; i < values.length; i++) {
-    const dealName = dealNameCol > 0 ? values[i][dealNameCol - 1] : '';
-    
-    if (dealName && dealName !== '') {
-      preserved[dealName.toString()] = {
-        note1: note1Col > 0 ? values[i][note1Col - 1] : '',
-        note2: note2Col > 0 ? values[i][note2Col - 1] : '',
-        directorPriority: dirPriorityCol > 0 ? values[i][dirPriorityCol - 1] : '',
-        directorNote: dirNoteCol > 0 ? values[i][dirNoteCol - 1] : '',
-        backgrounds: backgrounds[i],
-        fontColors: fontColors[i],
-        fontWeights: fontWeights[i]
-      };
-    }
-  }
-  
-  Logger.log(`  Preserved data for ${Object.keys(preserved).length} deals`);
-  return preserved;
 }
 
 /**
- * Restores preserved notes and formatting after refresh
- * @param {Sheet} sheet - The Pipeline Review sheet
- * @param {Object} preserved - Preserved data indexed by Deal Name
- * @param {Object} dealIdMap - Map of row index to Deal ID
+ * Applies preserved highlighting from Director
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @param {Array} dataArray - 2D data array
+ * @param {Map} preservedMap - Preserved highlighting by Deal ID
  */
-function restorePreservedData(sheet, preserved, dealIdMap) {
-  if (Object.keys(preserved).length === 0) {
-    Logger.log('  No preserved data to restore');
-    return;
-  }
+function applyPreservedHighlighting(sheet, dataArray, preservedMap) {
+  const dealIdColIndex = 1;
   
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    return;
-  }
-  
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const dealNameCol = headers.indexOf('Deal Name') + 1;
-  const note1Col = headers.indexOf('Note 1') + 1;
-  const note2Col = headers.indexOf('Note 2') + 1;
-  const dirPriorityCol = headers.indexOf('Director Priority') + 1;
-  const dirNoteCol = headers.indexOf('Director Note') + 1;
-  
-  // Read all deal names at once
-  const dealNames = sheet.getRange(2, dealNameCol, lastRow - 1, 1).getValues();
-  
-  // Prepare batch updates
-  const note1Updates = [];
-  const note2Updates = [];
-  const dirPriorityUpdates = [];
-  const dirNoteUpdates = [];
-  let restoredCount = 0;
-  
-  // Build updates array
-  for (let i = 0; i < dealNames.length; i++) {
-    const dealName = dealNames[i][0];
+  for (let row = 2; row <= dataArray.length; row++) {
+    const dealId = sheet.getRange(row, dealIdColIndex).getValue()?.toString();
+    if (!dealId) continue;
     
-    if (dealName && preserved[dealName.toString()]) {
-      const data = preserved[dealName.toString()];
-      
-      note1Updates.push([data.note1 || '']);
-      note2Updates.push([data.note2 || '']);
-      dirPriorityUpdates.push([data.directorPriority || '']);
-      dirNoteUpdates.push([data.directorNote || '']);
-      
-      restoredCount++;
-    } else {
-      note1Updates.push(['']);
-      note2Updates.push(['']);
-      dirPriorityUpdates.push(['']);
-      dirNoteUpdates.push(['']);
+    const preserved = preservedMap.get(dealId);
+    if (!preserved) continue;
+    
+    // Apply row backgrounds and font colors
+    const rowRange = sheet.getRange(row, 1, 1, dataArray[0].length);
+    
+    if (preserved.backgrounds) {
+      rowRange.setBackgrounds([preserved.backgrounds]);
+    }
+    
+    if (preserved.fontColors) {
+      rowRange.setFontColors([preserved.fontColors]);
     }
   }
+}
+
+/**
+ * Protects HubSpot data columns (all except Notes)
+ * @param {Sheet} sheet - Pipeline Review sheet
+ * @param {number} totalCols - Total number of columns
+ */
+function protectDataColumns(sheet, totalCols) {
+  const notesColIndex = totalCols; // Last column is Notes
   
-  // Apply all updates at once (batch)
-  if (note1Col > 0 && note1Updates.length > 0) {
-    sheet.getRange(2, note1Col, note1Updates.length, 1).setValues(note1Updates);
-  }
-  if (note2Col > 0 && note2Updates.length > 0) {
-    sheet.getRange(2, note2Col, note2Updates.length, 1).setValues(note2Updates);
-  }
-  if (dirPriorityCol > 0 && dirPriorityUpdates.length > 0) {
-    sheet.getRange(2, dirPriorityCol, dirPriorityUpdates.length, 1).setValues(dirPriorityUpdates);
-  }
-  if (dirNoteCol > 0 && dirNoteUpdates.length > 0) {
-    sheet.getRange(2, dirNoteCol, dirNoteUpdates.length, 1).setValues(dirNoteUpdates);
-  }
+  // Protect columns A through (Notes - 1)
+  const protection = sheet.getRange(2, 1, sheet.getMaxRows() - 1, notesColIndex - 1).protect();
+  protection.setDescription('HubSpot data (read-only)');
+  protection.setWarningOnly(false);
   
-  Logger.log(`  Restored data for ${restoredCount} deals`);
+  // Remove all editors except the script
+  const me = Session.getEffectiveUser();
+  protection.removeEditors(protection.getEditors());
+  if (protection.canDomainEdit()) {
+    protection.setDomainEdit(false);
+  }
 }

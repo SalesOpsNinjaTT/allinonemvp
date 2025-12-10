@@ -11,6 +11,8 @@ const TAB_CONFIG = '👥 Salespeople Config';
 const TAB_GOALS = '🎯 Goals & Quotas';
 const TAB_TECH = '🔧 Tech Access';
 const TAB_SUMMARY = '📊 Summary Dashboard';
+const TAB_DIRECTORS = '👥 Director Config';
+const TAB_TIER_LEVELS = 'tiers';
 
 /**
  * Finds a tab by checking both emoji and non-emoji versions
@@ -159,4 +161,43 @@ function getTierLevels() {
   Logger.log(`Loaded tier levels for ${tiersByRole.size} roles`);
   
   return tiersByRole;
+}
+
+/**
+ * Load director configuration from Control Sheet
+ * @returns {Array} Array of director objects
+ */
+function getDirectorConfig() {
+  const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+  
+  // Try to find Director Config sheet
+  const directorSheet = findTab(ss, TAB_DIRECTORS, 'Director Config');
+  
+  if (!directorSheet) {
+    Logger.log('Warning: Director Config sheet not found, returning empty array');
+    return [];
+  }
+  
+  const lastRow = directorSheet.getLastRow();
+  if (lastRow < 2) {
+    Logger.log('No directors configured');
+    return [];
+  }
+  
+  // Read director data: Director Name | Director Email | Team Name | Type | Tab Name
+  const data = directorSheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  
+  const directors = data
+    .filter(row => row[0] && row[1] && row[2]) // Name, Email, Team required
+    .map(row => ({
+      name: row[0],
+      email: row[1],
+      team: row[2],
+      type: row[3] || 'Director', // Director or Asst Dir
+      tabName: row[4] || `🎯 ${row[3] || 'Director'} - ${row[2]} Team` // Auto-generate if empty
+    }));
+  
+  Logger.log(`Loaded ${directors.length} directors/assistant directors`);
+  
+  return directors;
 }

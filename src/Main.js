@@ -86,11 +86,20 @@ function generateAllDashboards() {
       }
     });
     
-    // 3. Sync director flags from Director Hub to AE sheets
+    // 3. Update all Director Consolidated Pipelines (bi-directional sync)
+    Logger.log(`\n=== Updating Director Consolidated Pipelines ===`);
+    const directorResult = updateAllDirectorConsolidatedPipelines();
+    if (directorResult.success) {
+      Logger.log(`✅ Director Pipelines: ${directorResult.directorCount} directors updated`);
+    } else {
+      Logger.log(`❌ Director Pipelines failed: ${directorResult.error}`);
+    }
+    
+    // 4. Sync director flags from Director Hub to AE sheets
     Logger.log(`\n=== Syncing Director Flags to AE Sheets ===`);
     syncDirectorFlagsToAESheets(controlSheet, salespeople);
     
-    // 4. Summary
+    // 5. Summary
     const endTime = new Date();
     const duration = (endTime - startTime) / 1000;
     const message = `Complete: ${processedCount} successful, ${errorCount} errors (${duration}s)`;
