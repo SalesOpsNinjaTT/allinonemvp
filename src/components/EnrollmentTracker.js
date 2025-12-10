@@ -81,6 +81,35 @@ function getEasyStartHeaders() {
 }
 
 // ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Formats a percentage value for display
+ * Handles both decimal (0.07) and percentage (7) formats
+ * @param {number|string} value - Percentage value
+ * @returns {string} Formatted percentage (e.g., "7%")
+ */
+function formatPercentDisplay(value) {
+  if (!value && value !== 0) return '';
+  
+  let numValue = typeof value === 'number' ? value : parseFloat(value);
+  
+  if (isNaN(numValue)) return '';
+  
+  // If value is between 0 and 1, it's likely a decimal (0.07 = 7%)
+  if (numValue > 0 && numValue < 1) {
+    numValue = numValue * 100;
+  }
+  
+  // Round to 1 decimal place if needed
+  const rounded = Math.round(numValue * 10) / 10;
+  
+  // Remove .0 if it's a whole number
+  return rounded % 1 === 0 ? `${Math.round(rounded)}%` : `${rounded}%`;
+}
+
+// ============================================================================
 // TIER PROGRESS CALCULATION
 // ============================================================================
 
@@ -127,7 +156,7 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
       nextTierAt: nextTier.min,
       remaining: nextTier.min - enrollmentCount,
       percent: 0,
-      message: `${enrollmentCount} enrollments | ${nextTier.min - enrollmentCount} more to reach Tier 1 (${nextTier.percent})`
+      message: `${enrollmentCount} enrollments | ${nextTier.min - enrollmentCount} more to reach Tier 1 (${formatPercentDisplay(nextTier.percent)})`
     };
   }
   
@@ -146,7 +175,7 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
       nextTierAt: null,
       remaining: 0,
       percent: 100,
-      message: `${enrollmentCount} enrollments | MAX TIER ${currentTier.tier} 🎉 | ${currentTier.percent} commission`
+      message: `${enrollmentCount} enrollments | MAX TIER ${currentTier.tier} 🎉 | ${formatPercentDisplay(currentTier.percent)} commission`
     };
   }
   
@@ -168,7 +197,7 @@ function calculateTierProgress(role, enrollmentCount, tierLevels) {
     nextTierAt: nextTier.min,
     remaining: nextTier.min - enrollmentCount,
     percent: percentToNext,
-    message: `Tier ${currentTier.tier} | ${enrollmentCount} enrollments | ${percentToNext}% to Tier ${nextTier.tier} 🎯 | +${nextTier.min - enrollmentCount} for ${nextTier.percent} commission!`
+    message: `Tier ${currentTier.tier} | ${enrollmentCount} enrollments | ${percentToNext}% to Tier ${nextTier.tier} 🎯 | +${nextTier.min - enrollmentCount} for ${formatPercentDisplay(nextTier.percent)} commission!`
   };
 }
 
@@ -226,13 +255,18 @@ function updateEnrollmentTracker(individualSheet, person) {
     let tierProgress = null;
     if (person.role && person.role !== '') {
       const tierLevels = getTierLevels();
-      // Count total enrollments (not Easy Starts)
-      const totalEnrollments = deals.filter(deal => {
-        const easyStartOption = extractDealProperty(deal, 'easy_start_option');
-        return !easyStartOption || !EASY_START_VALUES.includes(easyStartOption);
-      }).length;
       
-      tierProgress = calculateTierProgress(person.role, totalEnrollments, tierLevels);
+      // Count ONLY CURRENT MONTH enrollments (not Easy Starts)
+      // Get current month key (YYYY-MM format)
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Get current month's regular enrollments (Easy Starts excluded)
+      const currentMonthEnrollments = groupedData[currentMonthKey]?.regularEnrollments?.length || 0;
+      
+      Logger.log(`  Current month (${currentMonthKey}): ${currentMonthEnrollments} enrollments`);
+      
+      tierProgress = calculateTierProgress(person.role, currentMonthEnrollments, tierLevels);
       if (tierProgress) {
         Logger.log(`  Tier progress: ${tierProgress.message}`);
       }
