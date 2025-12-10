@@ -215,15 +215,18 @@ function fetchDealsPage(accessToken, properties, ownerId, after, options = {}) {
     values: ['90284260', '90284261', '90284259']
   });
   
-  // Filter 3: Create Date (last 120 days)
+  // Filter 3: Create Date (rolling window, default 120 days)
   const now = new Date();
-  const days120Ago = new Date();
-  days120Ago.setDate(now.getDate() - 120);
+  const windowDays = options.dateRangeDays && typeof options.dateRangeDays === 'number'
+    ? options.dateRangeDays
+    : 120;
+  const createdAfter = new Date();
+  createdAfter.setDate(now.getDate() - windowDays);
   
   filters.push({
     propertyName: 'createdate',
     operator: 'GTE',
-    value: days120Ago.getTime().toString()
+    value: createdAfter.getTime().toString()
   });
   
   // Filter 4: NOT Closed Lost
