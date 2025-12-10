@@ -14,7 +14,7 @@
 // CONSTANTS
 // ============================================================================
 
-const TAB_PIPELINE = '📊 Pipeline Review';
+// Note: TAB_PIPELINE is defined in SheetProvisioner.js
 
 // Colors for call quality scoring (same as Enrollment Tracker)
 const SCORE_COLORS = {
