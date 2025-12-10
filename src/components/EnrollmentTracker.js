@@ -15,10 +15,9 @@
 
 // Colors for tier progress bar
 const TIER_COLORS = {
-  BACKGROUND: '#fff3cd',      // Light yellow background
-  PROGRESS_FILL: '#4CAF50',   // Green for filled progress
-  PROGRESS_EMPTY: '#e0e0e0',  // Gray for empty progress
-  TEXT: '#000000'             // Black text
+  BACKGROUND: '#fff3cd',         // Light yellow background for progress
+  BACKGROUND_MAX: '#d4edda',     // Light green background for max tier
+  TEXT: '#000000'                // Black text
 };
 
 // Enrollment fields (displayed for both Regular and Easy Start enrollments)
@@ -397,17 +396,48 @@ function buildEnrollmentDataArray(groupedData, historicalData, tierProgress) {
   
   // Add tier progress bar at the top if available
   if (tierProgress) {
-    // Create progress bar text with filled and empty blocks
-    const totalBlocks = 15; // Total number of blocks in progress bar
+    // Create a COOL, READABLE progress bar display
+    const totalBlocks = 20; // Increased for better visibility
     const filledBlocks = Math.round((tierProgress.percent / 100) * totalBlocks);
     const emptyBlocks = totalBlocks - filledBlocks;
     
-    const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+    // Use better block characters for visual appeal
+    const progressBar = '▓'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
     
-    // Single row with progress bar and message
-    const progressText = `🎯 ${tierProgress.message.split('|').map(s => s.trim()).join(' | ')} [${progressBar}]`;
+    // Extract info from message
+    const parts = tierProgress.message.split('|').map(s => s.trim());
     
-    dataArray.push([progressText]);
+    // Build a clean, multi-part display
+    let displayText = '';
+    
+    if (tierProgress.currentTierInfo || tierProgress.currentTier > 0) {
+      // Currently in a tier
+      const tier = tierProgress.currentTier;
+      const enrollments = parts[1] || ''; // "X enrollments"
+      const percent = tierProgress.percent;
+      
+      if (tierProgress.nextTierInfo) {
+        // Progress towards next tier
+        const remaining = tierProgress.remaining;
+        const nextTier = tierProgress.nextTierInfo.tier;
+        const nextPercent = formatPercentDisplay(tierProgress.nextTierInfo.percent);
+        
+        displayText = `🎯 TIER ${tier} ║ ${enrollments} ║ ${Math.round(percent)}% → Tier ${nextTier} ║ +${remaining} for ${nextPercent}  [${progressBar}]`;
+      } else {
+        // Max tier achieved
+        const commission = formatPercentDisplay(tierProgress.currentTierInfo.percent);
+        displayText = `🏆 MAX TIER ${tier} ║ ${enrollments} ║ ${commission} Commission  [${progressBar}] 🏆`;
+      }
+    } else {
+      // Below first tier
+      const enrollments = parts[0] || '';
+      const remaining = tierProgress.remaining;
+      const nextPercent = formatPercentDisplay(tierProgress.nextTierInfo?.percent || '');
+      
+      displayText = `🎯 ${enrollments} ║ +${remaining} to Tier 1 (${nextPercent})  [${progressBar}]`;
+    }
+    
+    dataArray.push([displayText]);
     currentRow++;
     
     // Empty row for spacing
@@ -610,20 +640,27 @@ function applyEnrollmentFormatting(sheet, dataArray, tierProgress) {
       continue;
     }
     
-    // Tier progress bar (starts with 🎯)
-    if (typeof firstCell === 'string' && firstCell.startsWith('🎯')) {
+    // Tier progress bar (starts with 🎯 or 🏆)
+    if (typeof firstCell === 'string' && (firstCell.startsWith('🎯') || firstCell.startsWith('🏆'))) {
       progressBarRow = rowIndex;
       const range = sheet.getRange(rowIndex, 1, 1, maxCols);
+      
+      // Determine color based on max tier achievement
+      const isMaxTier = firstCell.startsWith('🏆');
+      const bgColor = isMaxTier ? '#d4edda' : '#fff3cd'; // Green for max tier, yellow for progress
+      
       range
         .setFontWeight('bold')
-        .setFontSize(11)
-        .setBackground(TIER_COLORS.BACKGROUND)
-        .setFontColor(TIER_COLORS.TEXT)
+        .setFontSize(12) // Bigger font
+        .setBackground(bgColor)
+        .setFontColor('#000000')
         .setWrap(false)
+        .setHorizontalAlignment('center') // Center the progress bar
+        .setVerticalAlignment('middle')
         .merge();
       
       // Set row height for better visibility
-      sheet.setRowHeight(rowIndex, 35);
+      sheet.setRowHeight(rowIndex, 40); // Taller row
       
       continue;
     }
