@@ -54,9 +54,12 @@ function updateBonusCalculation(individualSheet, person) {
     if (!legacySheetId) {
       Logger.log(`  No legacy bonus sheet found for ${person.name}, skipping`);
       sheet.clear();
-      sheet.getRange('A1').setValue(`No legacy bonus data found for ${person.name}`)
+      sheet.getRange('A1').setValue(`⚠️ No legacy bonus data found for ${person.name}`)
         .setFontWeight('bold')
-        .setFontColor('#cc0000');
+        .setFontColor('#cc0000')
+        .setFontSize(12);
+      sheet.getRange('A3').setValue(`Please check the legacy Control Sheet to ensure ${person.name} has a bonus sheet ID configured.`)
+        .setWrap(true);
       return {
         success: false,
         error: 'No legacy sheet ID found'
@@ -73,10 +76,28 @@ function updateBonusCalculation(individualSheet, person) {
     
     if (!legacyBonusTab) {
       Logger.log(`  No "Monthly Bonus Report" tab found in legacy sheet for ${person.name}`);
+      const legacySheetUrl = legacySheet.getUrl();
+      
       sheet.clear();
-      sheet.getRange('A1').setValue(`Legacy bonus sheet found, but no "Monthly Bonus Report" tab`)
+      
+      // Add hyperlink to legacy sheet
+      const linkText = '🔗 Open your legacy bonus sheet';
+      sheet.getRange(1, 1)
+        .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
         .setFontWeight('bold')
-        .setFontColor('#ff9900');
+        .setFontSize(11)
+        .setBackground('#fff3cd')
+        .setFontColor('#0000ff');
+      
+      // Add error message
+      sheet.getRange(3, 1).setValue(`⚠️ Legacy bonus sheet found, but no "📈 Monthly Bonus Report" tab`)
+        .setFontWeight('bold')
+        .setFontColor('#ff9900')
+        .setFontSize(12);
+      
+      sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet. The "Monthly Bonus Report" tab may need to be created.`)
+        .setWrap(true);
+      
       return {
         success: false,
         error: 'No Monthly Bonus Report tab in legacy sheet'
@@ -90,10 +111,28 @@ function updateBonusCalculation(individualSheet, person) {
     
     if (lastRow === 0 || lastCol === 0) {
       Logger.log(`  Legacy bonus tab is empty for ${person.name}`);
+      const legacySheetUrl = legacySheet.getUrl();
+      
       sheet.clear();
-      sheet.getRange('A1').setValue(`Legacy bonus data is empty`)
+      
+      // Add hyperlink to legacy sheet
+      const linkText = '🔗 Open your legacy bonus sheet';
+      sheet.getRange(1, 1)
+        .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
         .setFontWeight('bold')
-        .setFontColor('#ff9900');
+        .setFontSize(11)
+        .setBackground('#fff3cd')
+        .setFontColor('#0000ff');
+      
+      // Add error message
+      sheet.getRange(3, 1).setValue(`⚠️ Legacy bonus data is empty`)
+        .setFontWeight('bold')
+        .setFontColor('#ff9900')
+        .setFontSize(12);
+      
+      sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet. You may need to run the bonus calculation in the legacy system first.`)
+        .setWrap(true);
+      
       return {
         success: false,
         error: 'Legacy bonus tab is empty'
@@ -116,7 +155,26 @@ function updateBonusCalculation(individualSheet, person) {
     Logger.log('  Step 4: Writing to new dashboard...');
     sheet.clear();
     
-    const targetRange = sheet.getRange(1, 1, lastRow, lastCol);
+    // Add hyperlink to legacy sheet at the top
+    const legacySheetUrl = legacySheet.getUrl();
+    const linkText = '🔗 View full bonus details in your legacy bonus sheet (click here)';
+    
+    sheet.getRange(1, 1)
+      .setValue(linkText)
+      .setFontWeight('bold')
+      .setFontSize(11)
+      .setBackground('#fff3cd')
+      .setFontColor('#0000ff');
+    
+    // Create hyperlink (using HYPERLINK formula)
+    sheet.getRange(1, 1)
+      .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`);
+    
+    // Add some spacing
+    sheet.setRowHeight(1, 30);
+    
+    // Write copied data starting from row 3 (leave row 2 empty for spacing)
+    const targetRange = sheet.getRange(3, 1, lastRow, lastCol);
     targetRange.setValues(values);
     
     // Apply formatting
@@ -133,10 +191,13 @@ function updateBonusCalculation(individualSheet, person) {
       sheet.autoResizeColumn(col);
     }
     
-    // Step 6: Check for frozen rows and apply
+    // Step 6: Check for frozen rows and apply (add 2 for the hyperlink row + spacing)
     const frozenRows = legacyBonusTab.getFrozenRows();
     if (frozenRows > 0) {
-      sheet.setFrozenRows(frozenRows);
+      sheet.setFrozenRows(frozenRows + 2);
+    } else {
+      // Freeze the hyperlink row at minimum
+      sheet.setFrozenRows(1);
     }
     
     const duration = (new Date() - startTime) / 1000;
@@ -157,9 +218,40 @@ function updateBonusCalculation(individualSheet, person) {
       const sheet = individualSheet.getSheetByName(TAB_BONUSES);
       if (sheet) {
         sheet.clear();
-        sheet.getRange('A1').setValue(`Error loading bonus data: ${error.message}`)
-          .setFontWeight('bold')
-          .setFontColor('#cc0000');
+        
+        // Try to add hyperlink to legacy sheet if we have the ID
+        const legacySheetId = getLegacyBonusSheetId(person);
+        if (legacySheetId) {
+          try {
+            const legacySheet = SpreadsheetApp.openById(legacySheetId);
+            const legacySheetUrl = legacySheet.getUrl();
+            const linkText = '🔗 Open your legacy bonus sheet';
+            
+            sheet.getRange(1, 1)
+              .setFormula(`=HYPERLINK("${legacySheetUrl}","${linkText}")`)
+              .setFontWeight('bold')
+              .setFontSize(11)
+              .setBackground('#fff3cd')
+              .setFontColor('#0000ff');
+            
+            sheet.getRange(3, 1).setValue(`❌ Error loading bonus data: ${error.message}`)
+              .setFontWeight('bold')
+              .setFontColor('#cc0000')
+              .setFontSize(12);
+            
+            sheet.getRange(4, 1).setValue(`Click the link above to view your legacy sheet directly.`)
+              .setWrap(true);
+          } catch (e) {
+            // If we can't open legacy sheet, just show error
+            sheet.getRange('A1').setValue(`❌ Error loading bonus data: ${error.message}`)
+              .setFontWeight('bold')
+              .setFontColor('#cc0000');
+          }
+        } else {
+          sheet.getRange('A1').setValue(`❌ Error loading bonus data: ${error.message}`)
+            .setFontWeight('bold')
+            .setFontColor('#cc0000');
+        }
       }
     } catch (e) {
       // Ignore
