@@ -34,11 +34,18 @@ const PIPELINE_PROPERTIES = [
   'createdate',
   'closedate',
   'hs_deal_stage_probability',
-  // Call Quality properties (SCORES, not __details text)
+  // Call Quality properties (SCORES, not __details text) - ALL 13 fields
   's_discovery_a_questioning_technique',
+  's_discovery_a_empathy__rapport_building_and_active_listening',
+  's_building_value_a_recap_of_students_needs',
   's_building_value_a_tailoring_features_and_benefits',
+  's_gaining_an_affirmation_and_program_requirements__a_gaining_affirmation',
+  's_gaining_an_affirmation_and_program_requirements__a_essential_program_requirements',
   's_funding_options__a_identifying_funding_needs',
+  's_funding_options__a_presenting_funding_solutions',
+  's_funding_options__a_securing_financial_commitment',
   's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles',
+  's_closing_the_deal__a_creating_a_sense_of_urgency',
   's_closing_the_deal__a_assuming_the_sale',
   's_closing_the_deal__a_ask_for_referral'
 ];
@@ -53,13 +60,20 @@ const PIPELINE_FIELDS = [
   { property: 'notes_next_activity_date', header: 'Next Activity', type: 'date' },
   { property: '__notes__', header: 'Notes', editable: true, preserve: true, type: 'manual' }, // Manual field
   { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' },
-  // Call Quality columns at the END
+  // Call Quality columns at the END (ALL 13 fields)
   { property: 's_discovery_a_questioning_technique', header: 'Questioning', colorCode: true, type: 'number' },
+  { property: 's_discovery_a_empathy__rapport_building_and_active_listening', header: 'Trust', colorCode: true, type: 'number' },
+  { property: 's_building_value_a_recap_of_students_needs', header: 'Recap Needs', colorCode: true, type: 'number' },
   { property: 's_building_value_a_tailoring_features_and_benefits', header: 'Building Value', colorCode: true, type: 'number' },
-  { property: 's_funding_options__a_identifying_funding_needs', header: 'Funding Options', colorCode: true, type: 'number' },
-  { property: 's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles', header: 'Addressing Objections', colorCode: true, type: 'number' },
-  { property: 's_closing_the_deal__a_assuming_the_sale', header: 'Closing the Deal', colorCode: true, type: 'number' },
-  { property: 's_closing_the_deal__a_ask_for_referral', header: 'Ask for Referral', colorCode: true, type: 'number' }
+  { property: 's_gaining_an_affirmation_and_program_requirements__a_gaining_affirmation', header: 'Program Alignment', colorCode: true, type: 'number' },
+  { property: 's_gaining_an_affirmation_and_program_requirements__a_essential_program_requirements', header: 'Requirements', colorCode: true, type: 'number' },
+  { property: 's_funding_options__a_identifying_funding_needs', header: 'Funding Needs', colorCode: true, type: 'number' },
+  { property: 's_funding_options__a_presenting_funding_solutions', header: 'Funding Solution', colorCode: true, type: 'number' },
+  { property: 's_funding_options__a_securing_financial_commitment', header: 'Funding Commitment', colorCode: true, type: 'number' },
+  { property: 's_addressing_objections_a_identifying_and_addressing_objections_and_obstacles', header: 'Objections', colorCode: true, type: 'number' },
+  { property: 's_closing_the_deal__a_creating_a_sense_of_urgency', header: 'Urgency', colorCode: true, type: 'number' },
+  { property: 's_closing_the_deal__a_assuming_the_sale', header: 'Assume Sale', colorCode: true, type: 'number' },
+  { property: 's_closing_the_deal__a_ask_for_referral', header: 'Referral', colorCode: true, type: 'number' }
 ];
 
 // DEPRECATED: Manual fields now integrated into PIPELINE_FIELDS

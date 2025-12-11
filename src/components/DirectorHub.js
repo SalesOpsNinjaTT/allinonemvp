@@ -650,19 +650,26 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
   const dataArray = [];
   
   // Headers (same as individual AE + Owner column at beginning)
-  // ORDER: Deal Name → Owner → Stage → [Call Quality] → Activity Dates → Notes
+  // ORDER: Deal Name → Owner → Stage → [Call Quality - ALL 13] → Activity Dates → Notes
   const headers = [
     'Deal ID', // Hidden
     'Deal Name',
     'Owner', // AE Name
     'Stage',
-    // Call Quality columns (matching PipelineReview.js order)
+    // Call Quality columns (matching PipelineReview.js order - ALL 13 fields)
     'Questioning',
+    'Trust',
+    'Recap Needs',
     'Building Value',
-    'Funding Options',
-    'Addressing Objections',
-    'Closing the Deal',
-    'Ask for Referral',
+    'Program Alignment',
+    'Requirements',
+    'Funding Needs',
+    'Funding Solution',
+    'Funding Commitment',
+    'Objections',
+    'Urgency',
+    'Assume Sale',
+    'Referral',
     // Activity dates and other info
     'Last Activity',
     'Next Activity',
@@ -682,11 +689,18 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       properties.dealname || '',
       deal.ownerName || '',
       properties.dealstage || '',
-      // Call Quality scores (matching new order)
+      // Call Quality scores (ALL 13 fields)
       properties.s_discovery_a_questioning_technique || '',
+      properties.s_discovery_a_empathy__rapport_building_and_active_listening || '',
+      properties.s_building_value_a_recap_of_students_needs || '',
       properties.s_building_value_a_tailoring_features_and_benefits || '',
+      properties.s_gaining_an_affirmation_and_program_requirements__a_gaining_affirmation || '',
+      properties.s_gaining_an_affirmation_and_program_requirements__a_essential_program_requirements || '',
       properties.s_funding_options__a_identifying_funding_needs || '',
+      properties.s_funding_options__a_presenting_funding_solutions || '',
+      properties.s_funding_options__a_securing_financial_commitment || '',
       properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles || '',
+      properties.s_closing_the_deal__a_creating_a_sense_of_urgency || '',
       properties.s_closing_the_deal__a_assuming_the_sale || '',
       properties.s_closing_the_deal__a_ask_for_referral || '',
       // Activity dates and other info
@@ -767,14 +781,21 @@ function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
   const dataRowCount = dataArray.length - 1; // Exclude header
   if (dataRowCount < 1) return;
   
-  // Find call quality column indices
+  // Find call quality column indices (ALL 13 fields)
   const callQualityHeaders = [
     'Questioning',
+    'Trust',
+    'Recap Needs',
     'Building Value',
-    'Funding Options',
-    'Addressing Objections',
-    'Closing the Deal',
-    'Ask for Referral'
+    'Program Alignment',
+    'Requirements',
+    'Funding Needs',
+    'Funding Solution',
+    'Funding Commitment',
+    'Objections',
+    'Urgency',
+    'Assume Sale',
+    'Referral'
   ];
   
   const rules = [];
