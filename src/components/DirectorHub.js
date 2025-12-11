@@ -112,21 +112,23 @@ function buildDirectorHubDataArray(deals) {
   const dealIdMap = {};
   
   // Headers - add Owner at the beginning
+  // ORDER: Owner → Deal Name → Stage → [Call Quality] → Activity Dates
   const headers = [
     'Owner',
     'Deal ID',
     'Deal Name',
     'Stage',
-    'Last Activity',
-    'Next Activity',
-    'Why Not Purchase Today',
-    'Call Quality Score',
+    // Call Quality columns
     'Questioning',
     'Building Value',
     'Funding Options',
     'Addressing Objections',
     'Closing the Deal',
-    'Ask for Referral'
+    'Ask for Referral',
+    // Activity dates and other info
+    'Last Activity',
+    'Next Activity',
+    'Why Not Purchase Today'
   ];
   dataArray.push(headers);
   
@@ -648,21 +650,23 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
   const dataArray = [];
   
   // Headers (same as individual AE + Owner column at beginning)
+  // ORDER: Deal Name → Owner → Stage → [Call Quality] → Activity Dates → Notes
   const headers = [
     'Deal ID', // Hidden
     'Deal Name',
     'Owner', // AE Name
     'Stage',
-    'Last Activity',
-    'Next Activity',
-    'Why Not Purchase Today',
-    'Call Quality Score',
+    // Call Quality columns (matching PipelineReview.js order)
     'Questioning',
     'Building Value',
     'Funding Options',
     'Addressing Objections',
     'Closing the Deal',
     'Ask for Referral',
+    // Activity dates and other info
+    'Last Activity',
+    'Next Activity',
+    'Why Not Purchase Today',
     'Notes' // From AE (read-only for director)
   ];
   
@@ -678,16 +682,17 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       properties.dealname || '',
       deal.ownerName || '',
       properties.dealstage || '',
-      formatDate(properties.notes_last_updated),
-      formatDate(properties.notes_next_activity_date),
-      properties.why_not_purchase_today_ || '',
-      properties.call_quality_score || '',
+      // Call Quality scores (matching new order)
       properties.s_discovery_a_questioning_technique || '',
       properties.s_building_value_a_tailoring_features_and_benefits || '',
       properties.s_funding_options__a_identifying_funding_needs || '',
       properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles || '',
       properties.s_closing_the_deal__a_assuming_the_sale || '',
       properties.s_closing_the_deal__a_ask_for_referral || '',
+      // Activity dates and other info
+      formatDate(properties.notes_last_updated),
+      formatDate(properties.notes_next_activity_date),
+      properties.why_not_purchase_today_ || '',
       notesMap.get(dealId) || '' // Notes from AE
     ];
     
@@ -764,7 +769,6 @@ function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
   
   // Find call quality column indices
   const callQualityHeaders = [
-    'Call Quality Score',
     'Questioning',
     'Building Value',
     'Funding Options',

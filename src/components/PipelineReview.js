@@ -35,7 +35,6 @@ const PIPELINE_PROPERTIES = [
   'closedate',
   'hs_deal_stage_probability',
   // Call Quality properties (SCORES, not __details text)
-  'call_quality_score',
   's_discovery_a_questioning_technique',
   's_building_value_a_tailoring_features_and_benefits',
   's_funding_options__a_identifying_funding_needs',
@@ -45,14 +44,16 @@ const PIPELINE_PROPERTIES = [
 ];
 
 // Field configuration for Pipeline Review
+// ORDER: Deal Name → Stage → Last Activity → Next Activity → Notes → Why Not Purchase → [Call Quality]
 const PIPELINE_FIELDS = [
   { property: 'dealId', header: 'Deal ID', hidden: true, type: 'text' },
   { property: 'dealname', header: 'Deal Name', hyperlink: true, type: 'text' },
   { property: 'dealstage', header: 'Stage', type: 'text' },
   { property: 'notes_last_updated', header: 'Last Activity', type: 'date' },
   { property: 'notes_next_activity_date', header: 'Next Activity', type: 'date' },
+  { property: '__notes__', header: 'Notes', editable: true, preserve: true, type: 'manual' }, // Manual field
   { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' },
-  { property: 'call_quality_score', header: 'Call Quality Score', colorCode: true, type: 'number' },
+  // Call Quality columns at the END
   { property: 's_discovery_a_questioning_technique', header: 'Questioning', colorCode: true, type: 'number' },
   { property: 's_building_value_a_tailoring_features_and_benefits', header: 'Building Value', colorCode: true, type: 'number' },
   { property: 's_funding_options__a_identifying_funding_needs', header: 'Funding Options', colorCode: true, type: 'number' },
@@ -61,10 +62,8 @@ const PIPELINE_FIELDS = [
   { property: 's_closing_the_deal__a_ask_for_referral', header: 'Ask for Referral', colorCode: true, type: 'number' }
 ];
 
-// Manual editable columns (appended after HubSpot fields)
-const MANUAL_FIELDS = [
-  { header: 'Notes', editable: true, preserve: true }
-];
+// DEPRECATED: Manual fields now integrated into PIPELINE_FIELDS
+const MANUAL_FIELDS = [];
 
 // ============================================================================
 // MAIN PIPELINE REVIEW FUNCTION
@@ -155,9 +154,9 @@ function capturePreservedData(sheet) {
     const dealId = row[0]?.toString(); // Column A is Deal ID
     if (!dealId) return;
     
-    // Find notes column (last column)
-    const notesColumnIndex = PIPELINE_FIELDS.length; // Notes is after all HubSpot fields
-    const notes = row[notesColumnIndex] || '';
+    // Find notes column
+    const notesFieldIndex = PIPELINE_FIELDS.findIndex(f => f.property === '__notes__');
+    const notes = notesFieldIndex >= 0 ? (row[notesFieldIndex] || '') : '';
     
     preservedMap.set(dealId, {
       notes: notes,
@@ -256,7 +255,7 @@ function buildPipelineDataArray(deals, preservedMap) {
   const dataArray = [];
   
   // Header row
-  const headers = PIPELINE_FIELDS.map(f => f.header).concat(MANUAL_FIELDS.map(f => f.header));
+  const headers = PIPELINE_FIELDS.map(f => f.header);
   dataArray.push(headers);
   
   // Data rows
@@ -267,25 +266,30 @@ function buildPipelineDataArray(deals, preservedMap) {
     
     const row = [];
     
-    // HubSpot fields
+    // All fields (including manual Notes field)
     PIPELINE_FIELDS.forEach(field => {
-      let value = properties[field.property] || '';
+      let value = '';
       
       // Special handling for Deal ID
       if (field.property === 'dealId') {
         value = dealId;
       }
-      
-      // Format dates
-      if (field.type === 'date' && value) {
-        value = formatDate(value);
+      // Special handling for Notes (manual field)
+      else if (field.property === '__notes__') {
+        value = preserved.notes || '';
+      }
+      // HubSpot properties
+      else {
+        value = properties[field.property] || '';
+        
+        // Format dates
+        if (field.type === 'date' && value) {
+          value = formatDate(value);
+        }
       }
       
       row.push(value);
     });
-    
-    // Manual fields (notes) - restored from preserved data
-    row.push(preserved.notes || '');
     
     dataArray.push(row);
   });
