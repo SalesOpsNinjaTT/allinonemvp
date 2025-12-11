@@ -25,15 +25,16 @@ function generateAllDashboards() {
     
     Logger.log(`\nProcessing ${salespeople.length} salespeople...`);
     
-    // 1.5. Update Director Hub (team-wide view)
-    Logger.log(`\n=== Updating Director Hub ===`);
-    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
-    const hubResult = updateDirectorHub(controlSheet, salespeople);
-    if (hubResult.success) {
-      Logger.log(`✅ Director Hub: ${hubResult.dealCount} deals (${hubResult.duration}s)`);
-    } else {
-      Logger.log(`❌ Director Hub failed: ${hubResult.error}`);
-    }
+    // 1.5. Update Director Hub (team-wide view) - DISABLED FOR MVP
+    // TODO: Re-enable after fixing undefined field constants
+    // Logger.log(`\n=== Updating Director Hub ===`);
+    // const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    // const hubResult = updateDirectorHub(controlSheet, salespeople);
+    // if (hubResult.success) {
+    //   Logger.log(`✅ Director Hub: ${hubResult.dealCount} deals (${hubResult.duration}s)`);
+    // } else {
+    //   Logger.log(`❌ Director Hub failed: ${hubResult.error}`);
+    // }
     
     let processedCount = 0;
     let errorCount = 0;

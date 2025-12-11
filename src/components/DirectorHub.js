@@ -114,7 +114,19 @@ function buildDirectorHubDataArray(deals) {
   // Headers - add Owner at the beginning
   const headers = [
     'Owner',
-    ...getPipelineReviewHeaders()
+    'Deal ID',
+    'Deal Name',
+    'Stage',
+    'Last Activity',
+    'Next Activity',
+    'Why Not Purchase Today',
+    'Call Quality Score',
+    'Questioning',
+    'Building Value',
+    'Funding Options',
+    'Addressing Objections',
+    'Closing the Deal',
+    'Ask for Referral'
   ];
   dataArray.push(headers);
   

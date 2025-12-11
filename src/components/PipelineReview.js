@@ -340,7 +340,7 @@ function clearSheetData(sheet) {
 }
 
 /**
- * Writes data array to sheet
+ * Writes data array to sheet with batch hyperlink creation (FAST)
  * @param {Sheet} sheet - Pipeline Review sheet
  * @param {Array} dataArray - 2D data array
  */
@@ -350,20 +350,32 @@ function writeDataToSheet(sheet, dataArray) {
   // Write all data
   sheet.getRange(1, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
   
-  // Add hyperlinks for Deal Name column
+  // Add hyperlinks for Deal Name column (BATCH operation)
   const dealNameColIndex = PIPELINE_FIELDS.findIndex(f => f.property === 'dealname') + 1;
   const dealIdColIndex = 1; // Deal ID is always column A
   
-  for (let i = 2; i <= dataArray.length; i++) {
-    const dealId = sheet.getRange(i, dealIdColIndex).getValue();
-    if (dealId) {
-      const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
-      const richText = SpreadsheetApp.newRichTextValue()
-        .setText(sheet.getRange(i, dealNameColIndex).getValue())
-        .setLinkUrl(dealUrl)
-        .build();
-      sheet.getRange(i, dealNameColIndex).setRichTextValue(richText);
+  const rowCount = dataArray.length - 1; // Exclude header
+  if (rowCount > 0) {
+    const richTextValues = [];
+    
+    for (let i = 1; i <= rowCount; i++) {
+      const dealId = dataArray[i][dealIdColIndex - 1]; // -1 for 0-based array index
+      const dealName = dataArray[i][dealNameColIndex - 1];
+      
+      if (dealId && dealName) {
+        const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
+        const richText = SpreadsheetApp.newRichTextValue()
+          .setText(dealName)
+          .setLinkUrl(dealUrl)
+          .build();
+        richTextValues.push([richText]);
+      } else {
+        richTextValues.push([dealName || '']);
+      }
     }
+    
+    // Set all hyperlinks in one operation
+    sheet.getRange(2, dealNameColIndex, rowCount, 1).setRichTextValues(richTextValues);
   }
 }
 
@@ -447,6 +459,7 @@ function applyCallQualityFormatting(sheet, dataArray) {
  */
 function applyPreservedHighlighting(sheet, dataArray, preservedMap) {
   const dealIdColIndex = 1;
+  const currentColCount = dataArray[0].length;
   
   for (let row = 2; row <= dataArray.length; row++) {
     const dealId = sheet.getRange(row, dealIdColIndex).getValue()?.toString();
@@ -456,14 +469,25 @@ function applyPreservedHighlighting(sheet, dataArray, preservedMap) {
     if (!preserved) continue;
     
     // Apply row backgrounds and font colors
-    const rowRange = sheet.getRange(row, 1, 1, dataArray[0].length);
+    const rowRange = sheet.getRange(row, 1, 1, currentColCount);
     
+    // Truncate or pad preserved arrays to match current column count
     if (preserved.backgrounds) {
-      rowRange.setBackgrounds([preserved.backgrounds]);
+      const backgrounds = preserved.backgrounds.slice(0, currentColCount);
+      // Pad with white if preserved has fewer columns
+      while (backgrounds.length < currentColCount) {
+        backgrounds.push('#ffffff');
+      }
+      rowRange.setBackgrounds([backgrounds]);
     }
     
     if (preserved.fontColors) {
-      rowRange.setFontColors([preserved.fontColors]);
+      const fontColors = preserved.fontColors.slice(0, currentColCount);
+      // Pad with black if preserved has fewer columns
+      while (fontColors.length < currentColCount) {
+        fontColors.push('#000000');
+      }
+      rowRange.setFontColors([fontColors]);
     }
   }
 }
