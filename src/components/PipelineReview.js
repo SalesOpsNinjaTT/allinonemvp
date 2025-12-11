@@ -407,8 +407,9 @@ function applyPipelineFormatting(sheet, dataArray, preservedMap) {
   // Apply call quality color coding
   applyCallQualityFormatting(sheet, dataArray);
   
-  // Apply preserved highlighting (from Director)
-  applyPreservedHighlighting(sheet, dataArray, preservedMap);
+  // Apply preserved highlighting (from Director) - MVP: Skip for now (not critical, slows down)
+  // TODO: Re-enable when director highlighting is working
+  // applyPreservedHighlighting(sheet, dataArray, preservedMap);
   
   // Protect HubSpot data columns (all except Notes)
   protectDataColumns(sheet, dataArray[0].length);
@@ -452,7 +453,7 @@ function applyCallQualityFormatting(sheet, dataArray) {
 }
 
 /**
- * Applies preserved highlighting from Director (BATCH operation)
+ * Applies preserved highlighting from Director (BATCH operation, only for rows with highlighting)
  * @param {Sheet} sheet - Pipeline Review sheet
  * @param {Array} dataArray - 2D data array
  * @param {Map} preservedMap - Preserved highlighting by Deal ID
@@ -463,65 +464,52 @@ function applyPreservedHighlighting(sheet, dataArray, preservedMap) {
   const currentColCount = dataArray[0].length;
   const rowCount = dataArray.length - 1; // Exclude header
   
-  // Build full backgrounds and fontColors arrays (for batch operation)
-  const allBackgrounds = [];
-  const allFontColors = [];
-  
+  // Only apply highlighting to rows that actually have it (SPARSE operation)
   for (let i = 1; i <= rowCount; i++) {
     const dealId = dataArray[i][0]?.toString(); // Deal ID is first column in dataArray
     const preserved = preservedMap.get(dealId);
     
     if (preserved && (preserved.backgrounds || preserved.fontColors)) {
+      const rowIndex = i + 1; // +1 for header
+      const rowRange = sheet.getRange(rowIndex, 1, 1, currentColCount);
+      
       // Truncate or pad to match current column count
-      const backgrounds = preserved.backgrounds ? 
-        preserved.backgrounds.slice(0, currentColCount) : 
-        new Array(currentColCount).fill('#ffffff');
-      
-      const fontColors = preserved.fontColors ? 
-        preserved.fontColors.slice(0, currentColCount) : 
-        new Array(currentColCount).fill('#000000');
-      
-      // Pad if needed
-      while (backgrounds.length < currentColCount) {
-        backgrounds.push('#ffffff');
-      }
-      while (fontColors.length < currentColCount) {
-        fontColors.push('#000000');
+      if (preserved.backgrounds) {
+        const backgrounds = preserved.backgrounds.slice(0, currentColCount);
+        while (backgrounds.length < currentColCount) {
+          backgrounds.push('#ffffff');
+        }
+        rowRange.setBackgrounds([backgrounds]);
       }
       
-      allBackgrounds.push(backgrounds);
-      allFontColors.push(fontColors);
-    } else {
-      // No preserved highlighting for this row - use defaults
-      allBackgrounds.push(new Array(currentColCount).fill('#ffffff'));
-      allFontColors.push(new Array(currentColCount).fill('#000000'));
+      if (preserved.fontColors) {
+        const fontColors = preserved.fontColors.slice(0, currentColCount);
+        while (fontColors.length < currentColCount) {
+          fontColors.push('#000000');
+        }
+        rowRange.setFontColors([fontColors]);
+      }
     }
   }
   
-  // Apply all backgrounds and font colors in ONE operation
-  if (rowCount > 0) {
-    sheet.getRange(2, 1, rowCount, currentColCount).setBackgrounds(allBackgrounds);
-    sheet.getRange(2, 1, rowCount, currentColCount).setFontColors(allFontColors);
-  }
+  Logger.log(`  Applied highlighting to ${preservedMap.size} deals`);
 }
 
 /**
- * Protects HubSpot data columns (all except Notes)
+ * Protects HubSpot data columns (all except Notes) - MVP: Just protect actual data rows
  * @param {Sheet} sheet - Pipeline Review sheet
  * @param {number} totalCols - Total number of columns
  */
 function protectDataColumns(sheet, totalCols) {
-  const notesColIndex = totalCols; // Last column is Notes
-  
-  // Protect columns A through (Notes - 1)
-  const protection = sheet.getRange(2, 1, sheet.getMaxRows() - 1, notesColIndex - 1).protect();
-  protection.setDescription('HubSpot data (read-only)');
-  protection.setWarningOnly(false);
-  
-  // Remove all editors except the script
-  const me = Session.getEffectiveUser();
-  protection.removeEditors(protection.getEditors());
-  if (protection.canDomainEdit()) {
-    protection.setDomainEdit(false);
-  }
+  // MVP: Skip protection for now - too slow and not critical
+  // TODO: Re-enable after finding faster approach
+  // 
+  // const notesColIndex = totalCols; // Last column is Notes
+  // const actualDataRows = sheet.getLastRow() - 1; // Only protect actual data, not 1000 empty rows
+  // 
+  // if (actualDataRows > 0) {
+  //   const protection = sheet.getRange(2, 1, actualDataRows, notesColIndex - 1).protect();
+  //   protection.setDescription('HubSpot data (read-only)');
+  //   protection.setWarningOnly(true); // Warning only, not strict
+  // }
 }
