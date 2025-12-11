@@ -96,9 +96,10 @@ function generateAllDashboards() {
       Logger.log(`❌ Director Pipelines failed: ${directorResult.error}`);
     }
     
-    // 4. Sync director flags from Director Hub to AE sheets
-    Logger.log(`\n=== Syncing Director Flags to AE Sheets ===`);
-    syncDirectorFlagsToAESheets(controlSheet, salespeople);
+    // 4. Sync director flags from Director Hub to AE sheets - Temporarily disabled for MVP
+    // Logger.log(`\n=== Syncing Director Flags to AE Sheets ===`);
+    // const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    // syncDirectorFlagsToAESheets(controlSheet, salespeople);
     
     // 5. Summary
     const endTime = new Date();
