@@ -452,43 +452,56 @@ function applyCallQualityFormatting(sheet, dataArray) {
 }
 
 /**
- * Applies preserved highlighting from Director
+ * Applies preserved highlighting from Director (BATCH operation)
  * @param {Sheet} sheet - Pipeline Review sheet
  * @param {Array} dataArray - 2D data array
  * @param {Map} preservedMap - Preserved highlighting by Deal ID
  */
 function applyPreservedHighlighting(sheet, dataArray, preservedMap) {
-  const dealIdColIndex = 1;
-  const currentColCount = dataArray[0].length;
+  if (preservedMap.size === 0) return; // No highlighting to restore
   
-  for (let row = 2; row <= dataArray.length; row++) {
-    const dealId = sheet.getRange(row, dealIdColIndex).getValue()?.toString();
-    if (!dealId) continue;
-    
+  const currentColCount = dataArray[0].length;
+  const rowCount = dataArray.length - 1; // Exclude header
+  
+  // Build full backgrounds and fontColors arrays (for batch operation)
+  const allBackgrounds = [];
+  const allFontColors = [];
+  
+  for (let i = 1; i <= rowCount; i++) {
+    const dealId = dataArray[i][0]?.toString(); // Deal ID is first column in dataArray
     const preserved = preservedMap.get(dealId);
-    if (!preserved) continue;
     
-    // Apply row backgrounds and font colors
-    const rowRange = sheet.getRange(row, 1, 1, currentColCount);
-    
-    // Truncate or pad preserved arrays to match current column count
-    if (preserved.backgrounds) {
-      const backgrounds = preserved.backgrounds.slice(0, currentColCount);
-      // Pad with white if preserved has fewer columns
+    if (preserved && (preserved.backgrounds || preserved.fontColors)) {
+      // Truncate or pad to match current column count
+      const backgrounds = preserved.backgrounds ? 
+        preserved.backgrounds.slice(0, currentColCount) : 
+        new Array(currentColCount).fill('#ffffff');
+      
+      const fontColors = preserved.fontColors ? 
+        preserved.fontColors.slice(0, currentColCount) : 
+        new Array(currentColCount).fill('#000000');
+      
+      // Pad if needed
       while (backgrounds.length < currentColCount) {
         backgrounds.push('#ffffff');
       }
-      rowRange.setBackgrounds([backgrounds]);
-    }
-    
-    if (preserved.fontColors) {
-      const fontColors = preserved.fontColors.slice(0, currentColCount);
-      // Pad with black if preserved has fewer columns
       while (fontColors.length < currentColCount) {
         fontColors.push('#000000');
       }
-      rowRange.setFontColors([fontColors]);
+      
+      allBackgrounds.push(backgrounds);
+      allFontColors.push(fontColors);
+    } else {
+      // No preserved highlighting for this row - use defaults
+      allBackgrounds.push(new Array(currentColCount).fill('#ffffff'));
+      allFontColors.push(new Array(currentColCount).fill('#000000'));
     }
+  }
+  
+  // Apply all backgrounds and font colors in ONE operation
+  if (rowCount > 0) {
+    sheet.getRange(2, 1, rowCount, currentColCount).setBackgrounds(allBackgrounds);
+    sheet.getRange(2, 1, rowCount, currentColCount).setFontColors(allFontColors);
   }
 }
 
