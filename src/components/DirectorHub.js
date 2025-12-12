@@ -8,6 +8,16 @@
 // Tab name constant
 const TAB_DIRECTOR_HUB = '👔 Director Hub';
 
+// Stage mapping (ID to Name)
+const STAGE_MAP = {
+  '90284257': 'Create Curiosity',
+  '90284258': 'Needs Analysis',
+  '90284259': 'Demonstrating Value',
+  '90284260': 'Partnership Proposal',
+  '90284261': 'Negotiation',
+  '90284262': 'Partnership Confirmed'
+};
+
 // Director priority flags
 const PRIORITY_FLAGS = {
   HOT: '🟢',
@@ -683,14 +693,18 @@ function collectNotesFromTeamAEs(teamAEs) {
 function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
   const dataArray = [];
   
-  // Headers (same as individual AE + Owner column at beginning)
-  // ORDER: Deal Name → Owner → Stage → [Call Quality - ALL 13] → Activity Dates → Notes
+  // Headers - Optimized order per director request
+  // ORDER: Deal Name → Owner → Stage → Last Activity → Next Activity → Notes → Why Not Purchase → [Call Quality 13]
   const headers = [
-    'Deal ID', // Hidden
-    'Deal Name',
-    'Owner', // AE Name
-    'Stage',
-    // Call Quality columns (matching PipelineReview.js order - ALL 13 fields)
+    'Deal ID', // Hidden (A)
+    'Deal Name', // (B)
+    'Owner', // AE Name (C)
+    'Stage', // (D)
+    'Last Activity', // (E)
+    'Next Activity', // (F)
+    'Notes', // From AE (G)
+    'Why Not Purchase Today', // (H)
+    // Call Quality columns (matching PipelineReview.js order - ALL 13 fields) (I-U)
     'Questioning',
     'Trust',
     'Recap Needs',
@@ -703,12 +717,7 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
     'Objections',
     'Urgency',
     'Assume Sale',
-    'Referral',
-    // Activity dates and other info
-    'Last Activity',
-    'Next Activity',
-    'Why Not Purchase Today',
-    'Notes' // From AE (read-only for director)
+    'Referral'
   ];
   
   dataArray.push(headers);
@@ -718,12 +727,20 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
     const dealId = deal.id.toString();
     const properties = deal.properties || {};
     
+    // Map stage ID to stage name
+    const stageId = properties.dealstage || '';
+    const stageName = STAGE_MAP[stageId] || stageId; // Fallback to ID if not found
+    
     const row = [
-      dealId,
-      properties.dealname || '',
-      deal.ownerName || '',
-      properties.dealstage || '',
-      // Call Quality scores (ALL 13 fields)
+      dealId, // A - Deal ID
+      properties.dealname || '', // B - Deal Name
+      deal.ownerName || '', // C - Owner (AE Name)
+      stageName, // D - Stage (NAME, not ID)
+      formatDate(properties.notes_last_updated), // E - Last Activity
+      formatDate(properties.notes_next_activity_date), // F - Next Activity
+      notesMap.get(dealId) || '', // G - Notes from AE
+      properties.why_not_purchase_today_ || '', // H - Why Not Purchase Today
+      // Call Quality scores (ALL 13 fields) I-U
       properties.s_discovery_a_questioning_technique || '',
       properties.s_discovery_a_empathy__rapport_building_and_active_listening || '',
       properties.s_building_value_a_recap_of_students_needs || '',
@@ -736,12 +753,7 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       properties.s_addressing_objections_a_identifying_and_addressing_objections_and_obstacles || '',
       properties.s_closing_the_deal__a_creating_a_sense_of_urgency || '',
       properties.s_closing_the_deal__a_assuming_the_sale || '',
-      properties.s_closing_the_deal__a_ask_for_referral || '',
-      // Activity dates and other info
-      formatDate(properties.notes_last_updated),
-      formatDate(properties.notes_next_activity_date),
-      properties.why_not_purchase_today_ || '',
-      notesMap.get(dealId) || '' // Notes from AE
+      properties.s_closing_the_deal__a_ask_for_referral || ''
     ];
     
     dataArray.push(row);
@@ -802,7 +814,7 @@ function applyConsolidatedPipelineFormatting(sheet, dataArray, highlightMap) {
     .setVerticalAlignment('middle');
   
   sheet.setFrozenRows(1);
-  sheet.setFrozenColumns(3); // Freeze Deal ID, Deal Name, Owner
+  sheet.setFrozenColumns(4); // Freeze Deal ID, Deal Name, Owner, Notes
   
   // Hide Deal ID column
   sheet.hideColumns(1);
