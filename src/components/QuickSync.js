@@ -7,11 +7,11 @@
  */
 
 /**
- * AE BUTTON: Push my notes to director sheet
- * Called from individual AE's sheet
+ * DIRECTOR BUTTON: Pull notes from team AE sheets
+ * Called from Control Sheet
  * Duration: 2-3 seconds
  */
-function pushMyNotesToDirector() {
+function pullNotesFromMyTeam() {
   const lock = LockService.getScriptLock();
   const lockAcquired = lock.tryLock(5000);
   
@@ -22,75 +22,82 @@ function pushMyNotesToDirector() {
   
   try {
     const startTime = new Date();
-    showToast('📤 Pushing your notes to director...', 'Syncing', 3);
+    showToast('📤 Pulling notes from your team...', 'Syncing', 3);
     
-    // Step 1: Identify who is running this (which AE)
-    const mySheet = SpreadsheetApp.getActiveSpreadsheet();
-    const mySheetId = mySheet.getId();
+    // Step 1: Detect which director tab is active
+    const controlSheet = SpreadsheetApp.getActiveSpreadsheet();
+    const activeSheet = controlSheet.getActiveSheet();
+    const activeTabName = activeSheet.getName();
     
-    // Step 2: Load config to find my details
-    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
-    const config = loadConfiguration();
-    const { salespeople } = config;
-    const me = salespeople.find(p => p.sheetId === mySheetId);
+    Logger.log(`[Quick Sync] Pulling notes from "${activeTabName}"...`);
     
-    if (!me) {
-      throw new Error('Could not identify your account in the system. Please contact admin.');
-    }
+    // Step 2: Find which director owns this tab
+    const directors = getDirectorConfig();
+    const director = directors.find(d => d.tabName === activeTabName);
     
-    if (!me.team) {
-      throw new Error('Your team is not configured. Please contact admin.');
-    }
-    
-    Logger.log(`[Quick Sync] ${me.name} pushing notes to ${me.team} team director...`);
-    
-    // Step 3: Read my notes from Pipeline Review
-    const pipelineSheet = mySheet.getSheetByName(TAB_PIPELINE);
-    if (!pipelineSheet) {
-      throw new Error('Pipeline Review tab not found in your sheet.');
-    }
-    
-    const lastRow = pipelineSheet.getLastRow();
-    if (lastRow < 2) {
-      showToast('ℹ️ No deals found in your Pipeline Review', 'No Data', 3);
+    if (!director) {
+      showToast(`ℹ️ "${activeTabName}" is not a director tab. Please switch to a director's tab and try again.`, 'Wrong Tab', 8);
       return;
     }
     
-    // Read Deal IDs (column A) and Notes (column G)
-    const NOTES_COLUMN_INDEX = 6; // Column G (0-based: 0=A, 6=G)
-    const data = pipelineSheet.getRange(2, 1, lastRow - 1, Math.max(7, pipelineSheet.getLastColumn())).getValues();
+    Logger.log(`  Detected director: ${director.name} (${director.team} team)`);
     
-    const myNotes = new Map();
-    data.forEach(row => {
-      const dealId = row[0]?.toString();
-      const notes = row[NOTES_COLUMN_INDEX] || '';
-      if (dealId) {
-        myNotes.set(dealId, notes);
+    // Step 3: Find all AEs on this team
+    const config = loadConfiguration();
+    const { salespeople } = config;
+    const teamAEs = salespeople.filter(p => 
+      p.team && p.team.toLowerCase() === director.team.toLowerCase() && p.sheetId
+    );
+    
+    if (teamAEs.length === 0) {
+      throw new Error(`No AEs found for ${director.team} team.`);
+    }
+    
+    Logger.log(`  Found ${teamAEs.length} AE(s) on ${director.team} team`);
+    
+    // Step 4: Collect notes from all team AE sheets
+    const notesMap = new Map(); // Map: Deal ID -> notes
+    
+    teamAEs.forEach(person => {
+      try {
+        const aeSheet = SpreadsheetApp.openById(person.sheetId);
+        const pipelineSheet = aeSheet.getSheetByName(TAB_PIPELINE);
+        
+        if (!pipelineSheet) {
+          Logger.log(`    No Pipeline Review tab for ${person.name}, skipping`);
+          return;
+        }
+        
+        const lastRow = pipelineSheet.getLastRow();
+        if (lastRow < 2) return;
+        
+        // Read Deal IDs (column A) and Notes (column G)
+        const NOTES_COLUMN_INDEX = 6; // Column G (0-based)
+        const data = pipelineSheet.getRange(2, 1, lastRow - 1, Math.max(7, pipelineSheet.getLastColumn())).getValues();
+        
+        data.forEach(row => {
+          const dealId = row[0]?.toString();
+          const notes = row[NOTES_COLUMN_INDEX] || '';
+          
+          if (dealId && notes) {
+            notesMap.set(dealId, notes);
+          }
+        });
+        
+      } catch (e) {
+        Logger.log(`    Error collecting from ${person.name}: ${e.message}`);
       }
     });
     
-    Logger.log(`  Collected notes for ${myNotes.size} deals`);
+    Logger.log(`  Collected notes for ${notesMap.size} deals`);
     
-    if (myNotes.size === 0) {
-      showToast('ℹ️ No deals found to sync', 'No Data', 3);
+    if (notesMap.size === 0) {
+      showToast('ℹ️ No notes found in team AE sheets.', 'No Notes', 5);
       return;
     }
     
-    // Step 4: Find director's tab in Control Sheet
-    const directors = getDirectorConfig();
-    const myDirector = directors.find(d => d.team.toLowerCase() === me.team.toLowerCase());
-    
-    if (!myDirector) {
-      throw new Error(`No director configured for ${me.team} team. Please contact admin.`);
-    }
-    
-    const directorSheet = controlSheet.getSheetByName(myDirector.tabName);
-    if (!directorSheet) {
-      throw new Error(`Director sheet "${myDirector.tabName}" not found. Please run full dashboard generation first.`);
-    }
-    
-    // Step 5: Update notes in director sheet
-    const directorLastRow = directorSheet.getLastRow();
+    // Step 5: Update notes in director's sheet
+    const directorLastRow = activeSheet.getLastRow();
     if (directorLastRow < 2) {
       showToast('ℹ️ Director sheet is empty. Please run full dashboard generation first.', 'No Data', 5);
       return;
@@ -98,18 +105,18 @@ function pushMyNotesToDirector() {
     
     // Read director sheet (Deal ID in column A, Notes in column H)
     const DIRECTOR_NOTES_COLUMN = 8; // Column H (1-based)
-    const directorData = directorSheet.getRange(2, 1, directorLastRow - 1, 1).getValues(); // Just Deal IDs
+    const directorDealIds = activeSheet.getRange(2, 1, directorLastRow - 1, 1).getValues(); // Just Deal IDs
     
     let updatedCount = 0;
     const updates = []; // Store updates for batch operation
     
-    directorData.forEach((row, index) => {
+    directorDealIds.forEach((row, index) => {
       const dealId = row[0]?.toString();
-      if (dealId && myNotes.has(dealId)) {
+      if (dealId && notesMap.has(dealId)) {
         const rowIndex = index + 2; // +2 for header and 0-based
         updates.push({
           row: rowIndex,
-          notes: myNotes.get(dealId)
+          notes: notesMap.get(dealId)
         });
         updatedCount++;
       }
@@ -118,7 +125,7 @@ function pushMyNotesToDirector() {
     // Batch update notes (FAST!)
     if (updates.length > 0) {
       updates.forEach(update => {
-        directorSheet.getRange(update.row, DIRECTOR_NOTES_COLUMN).setValue(update.notes);
+        activeSheet.getRange(update.row, DIRECTOR_NOTES_COLUMN).setValue(update.notes);
       });
       Logger.log(`  Updated ${updatedCount} notes in director sheet`);
     }
@@ -126,7 +133,11 @@ function pushMyNotesToDirector() {
     const duration = (new Date() - startTime) / 1000;
     Logger.log(`[Quick Sync] Complete (${duration}s)`);
     
-    showToast(`✅ Pushed notes for ${updatedCount} deal(s) to ${myDirector.name}'s sheet (${duration.toFixed(1)}s)`, 'Success', 5);
+    if (updatedCount > 0) {
+      showToast(`✅ Pulled notes for ${updatedCount} deal(s) from ${teamAEs.length} AE(s) (${duration.toFixed(1)}s)`, 'Success', 5);
+    } else {
+      showToast('ℹ️ No matching deals found with notes.', 'No Updates', 5);
+    }
     
   } catch (error) {
     Logger.log(`[Quick Sync] ERROR: ${error.message}`);
@@ -134,7 +145,7 @@ function pushMyNotesToDirector() {
     
     // Show toast AND send email
     showToast(`❌ Failed: ${error.message}`, 'Error', 10);
-    sendErrorEmail('Push Notes to Director', error);
+    sendErrorEmail('Pull Notes from Team', error);
     
   } finally {
     lock.releaseLock();

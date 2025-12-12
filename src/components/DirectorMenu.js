@@ -34,6 +34,7 @@ function onOpen() {
     
     // Quick Sync menu (for directors)
     ui.createMenu('⚡ Quick Sync')
+      .addItem('📤 Pull Notes from Team', 'pullNotesFromMyTeam')
       .addItem('📥 Sync Highlighting to Team', 'syncHighlightingToMyTeam')
       .addToUi();
   } catch (error) {
