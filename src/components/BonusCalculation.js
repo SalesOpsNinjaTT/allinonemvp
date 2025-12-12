@@ -7,7 +7,7 @@
  * Strategy: Don't re-implement bonus calculation - just copy the already-calculated data
  * from the legacy system into the new unified dashboard.
  * 
- * Note: TAB_BONUSES is defined in SheetProvisioner.js
+ * Note: TAB_BONUS is defined in Constants.js
  */
 
 // ============================================================================
@@ -41,7 +41,7 @@ function updateBonusCalculation(individualSheet, person) {
     Logger.log(`[Bonus Calculation] Updating for ${person.name}...`);
     
     const startTime = new Date();
-    const sheet = individualSheet.getSheetByName(TAB_BONUSES);
+    const sheet = individualSheet.getSheetByName(TAB_BONUS);
     
     if (!sheet) {
       throw new Error(`Bonus Calculation tab not found for ${person.name}`);
@@ -215,7 +215,7 @@ function updateBonusCalculation(individualSheet, person) {
     
     // Write error message to sheet
     try {
-      const sheet = individualSheet.getSheetByName(TAB_BONUSES);
+      const sheet = individualSheet.getSheetByName(TAB_BONUS);
       if (sheet) {
         sheet.clear();
         
