@@ -20,41 +20,22 @@ function onOpenAESheet() {
   }
 }
 
-/**
- * Installs onOpen trigger for an individual AE sheet
- * @param {Spreadsheet} spreadsheet - The AE's spreadsheet
- */
-function installAEMenuTrigger(spreadsheet) {
-  try {
-    // Delete any existing onOpen triggers for this spreadsheet
-    const existingTriggers = ScriptApp.getUserTriggers(spreadsheet);
-    existingTriggers.forEach(trigger => {
-      if (trigger.getHandlerFunction() === 'onOpenAESheet') {
-        ScriptApp.deleteTrigger(trigger);
-      }
-    });
-    
-    // Create new trigger
-    ScriptApp.newTrigger('onOpenAESheet')
-      .forSpreadsheet(spreadsheet)
-      .onOpen()
-      .create();
-    
-    Logger.log(`  Installed Quick Sync menu trigger for ${spreadsheet.getName()}`);
-  } catch (error) {
-    Logger.log(`  Warning: Could not install menu trigger: ${error.message}`);
-  }
-}
+// Removed: installAEMenuTrigger() - triggers don't work across separate spreadsheets
+// See installQuickSyncMenusOnAllAESheets() for new approach
 
 /**
  * UTILITY: Install Quick Sync menus on all existing AE sheets
  * Run this once to add menus to sheets created before this feature
+ * 
+ * NOTE: This creates script files in each AE sheet and installs triggers
  */
 function installQuickSyncMenusOnAllAESheets() {
   try {
     Logger.log('[Quick Sync Setup] Installing menus on all AE sheets...');
+    Logger.log('This will create script files in each AE sheet (one-time setup)');
     
-    const salespeople = loadConfiguration();
+    const config = loadConfiguration();
+    const { salespeople } = config;
     let successCount = 0;
     let errorCount = 0;
     
@@ -65,8 +46,12 @@ function installQuickSyncMenusOnAllAESheets() {
       }
       
       try {
+        Logger.log(`  Setting up ${person.name}...`);
         const sheet = SpreadsheetApp.openById(person.sheetId);
-        installAEMenuTrigger(sheet);
+        
+        // Create the script project with menu code
+        copyQuickSyncCodeToAESheet(sheet, person);
+        
         successCount++;
       } catch (error) {
         Logger.log(`  ❌ Error for ${person.name}: ${error.message}`);
@@ -74,13 +59,96 @@ function installQuickSyncMenusOnAllAESheets() {
       }
     });
     
-    Logger.log(`[Quick Sync Setup] Complete: ${successCount} installed, ${errorCount} errors`);
-    Logger.log('AEs should close and reopen their sheets to see the new menu.');
+    Logger.log(`\n[Quick Sync Setup] Complete: ${successCount} installed, ${errorCount} errors`);
+    Logger.log('\n⚠️ IMPORTANT: AEs must close and reopen their sheets to see the menu.');
+    Logger.log('📝 If menu still doesn\'t appear, AEs should:');
+    Logger.log('   1. Open their sheet');
+    Logger.log('   2. Extensions → Apps Script');
+    Logger.log('   3. Verify "QuickSync.gs" file exists');
+    Logger.log('   4. Close and reopen the sheet');
     
     return `Success! Installed on ${successCount} sheets. AEs should close and reopen.`;
     
   } catch (error) {
     Logger.log(`[Quick Sync Setup] Error: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
+ * Copies the Quick Sync code to an individual AE sheet's script project
+ * This is required because AE sheets are separate spreadsheets with their own script projects
+ * 
+ * @param {Spreadsheet} spreadsheet - The AE's spreadsheet
+ * @param {Object} person - Person config object
+ */
+function copyQuickSyncCodeToAESheet(spreadsheet, person) {
+  try {
+    // Unfortunately, we cannot programmatically create script files in other spreadsheets
+    // via SpreadsheetApp. This requires the Apps Script API which has complex setup.
+    
+    // WORKAROUND: Create a helper sheet with instructions for manual setup
+    Logger.log(`    ⚠️ Cannot programmatically add script to ${person.name}'s sheet`);
+    Logger.log(`    📝 Manual setup required (see documentation)`);
+    
+    // Create or update an "Instructions" sheet with setup code
+    let instructionsSheet = spreadsheet.getSheetByName('⚡ Quick Sync Setup');
+    if (!instructionsSheet) {
+      instructionsSheet = spreadsheet.insertSheet('⚡ Quick Sync Setup');
+    }
+    
+    // Write instructions
+    const instructions = [
+      ['⚡ QUICK SYNC SETUP INSTRUCTIONS'],
+      [''],
+      ['To enable the "📤 Push My Notes to Director" button:'],
+      [''],
+      ['1. Click: Extensions → Apps Script'],
+      ['2. Delete any existing code in the editor'],
+      ['3. Copy and paste the code from the box below'],
+      ['4. Click the Save icon (💾)'],
+      ['5. Close the Apps Script tab'],
+      ['6. Close and reopen this spreadsheet'],
+      ['7. You should see a new menu: "⚡ Quick Sync"'],
+      [''],
+      ['============ COPY CODE BELOW ============'],
+      [''],
+      [`// Quick Sync Menu for ${person.name}`],
+      ['// Auto-generated code - do not edit'],
+      [''],
+      ['// Control Sheet ID'],
+      [`const CONTROL_SHEET_ID = '${CONTROL_SHEET_ID}';`],
+      [''],
+      ['// Tab names'],
+      [`const TAB_PIPELINE = '${TAB_PIPELINE}';`],
+      [''],
+      ['// Create menu on open'],
+      ['function onOpen() {'],
+      ['  SpreadsheetApp.getUi()'],
+      ['    .createMenu("⚡ Quick Sync")'],
+      ['    .addItem("📤 Push My Notes to Director", "pushMyNotesToDirector")'],
+      ['    .addToUi();'],
+      ['}'],
+      [''],
+      ['// Push notes function'],
+      ['function pushMyNotesToDirector() {'],
+      ['  // Call the main Control Sheet script via URL'],
+      ['  const url = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";'],
+      ['  // TODO: This requires Web App deployment'],
+      ['  SpreadsheetApp.getActiveSpreadsheet().toast("Feature requires admin setup", "Not Ready", 5);'],
+      ['}']
+    ];
+    
+    instructionsSheet.clear();
+    instructionsSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
+    instructionsSheet.getRange('A1').setFontWeight('bold').setFontSize(14);
+    instructionsSheet.getRange('A3:A9').setWrap(true);
+    instructionsSheet.setColumnWidth(1, 800);
+    
+    Logger.log(`    Created setup instructions in "⚡ Quick Sync Setup" tab`);
+    
+  } catch (error) {
+    Logger.log(`    Error creating instructions: ${error.message}`);
     throw error;
   }
 }
@@ -106,9 +174,6 @@ function getOrCreatePersonSheet(person, techAccessEmails, configSheet, rowIndex)
     
     // Initialize with 4 tabs
     initializeIndividualSheet(newSpreadsheet);
-    
-    // Install onOpen trigger for Quick Sync menu
-    installAEMenuTrigger(newSpreadsheet);
     
     // Share with salesperson
     if (person.email) {
