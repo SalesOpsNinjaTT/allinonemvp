@@ -21,6 +21,7 @@ function createControlSheet() {
   setupSalespeopleConfig(ss);
   setupGoalsAndQuotas(ss);
   setupTechAccess(ss);
+  setupDirectorConfig(ss);
   setupInstructions(ss);
   
   // Then delete default Sheet1
@@ -51,18 +52,18 @@ function createControlSheet() {
 function setupSalespeopleConfig(ss) {
   const sheet = ss.insertSheet('👥 Salespeople Config');
   
-  // Headers
-  const headers = [['Name', 'Email', 'Sheet ID', 'Sheet URL']];
-  sheet.getRange('A1:D1').setValues(headers)
+  // Headers (Added: HubSpot User ID, Team, Role, Small Team)
+  const headers = [['Name', 'Email', 'Sheet ID', 'Sheet URL', 'HubSpot User ID', 'Team', 'Role', 'Small Team']];
+  sheet.getRange('A1:H1').setValues(headers)
     .setFontWeight('bold')
     .setBackground('#4285f4')
     .setFontColor('#ffffff');
   
   // Sample data (commented out row)
   const sampleData = [
-    ['Example: John Doe', 'john.doe@example.com', '', '']
+    ['Example: John Doe', 'john.doe@example.com', '', '', '12345678', 'US Sales', 'Full-cycle AE', 'Team A']
   ];
-  sheet.getRange('A2:D2').setValues(sampleData)
+  sheet.getRange('A2:H2').setValues(sampleData)
     .setFontColor('#999999')
     .setFontStyle('italic');
   
@@ -71,6 +72,10 @@ function setupSalespeopleConfig(ss) {
   sheet.setColumnWidth(2, 200); // Email
   sheet.setColumnWidth(3, 300); // Sheet ID
   sheet.setColumnWidth(4, 400); // Sheet URL
+  sheet.setColumnWidth(5, 120); // HubSpot User ID
+  sheet.setColumnWidth(6, 100); // Team
+  sheet.setColumnWidth(7, 120); // Role
+  sheet.setColumnWidth(8, 100); // Small Team
   
   // Freeze header row
   sheet.setFrozenRows(1);
@@ -133,6 +138,43 @@ function setupTechAccess(ss) {
   Logger.log('✅ Created: 🔧 Tech Access');
 }
 
+function setupDirectorConfig(ss) {
+  const sheet = ss.insertSheet('👥 Director Config');
+  
+  // Headers
+  const headers = [['Director Name', 'Director Email', 'Team Name', 'Type', 'Tab Name (optional)']];
+  sheet.getRange('A1:E1').setValues(headers)
+    .setFontWeight('bold')
+    .setBackground('#9c27b0')
+    .setFontColor('#ffffff');
+  
+  // Sample data
+  const sampleData = [
+    ['Jane Smith', 'jane.smith@example.com', 'US Sales', 'Director', '🎯 Director - US Sales Team'],
+    ['Bob Johnson', 'bob.johnson@example.com', 'US Sales', 'Asst Dir', '🎯 Asst Dir - US Sales Team']
+  ];
+  sheet.getRange('A2:E3').setValues(sampleData)
+    .setFontColor('#999999')
+    .setFontStyle('italic');
+  
+  // Format columns
+  sheet.setColumnWidth(1, 150); // Director Name
+  sheet.setColumnWidth(2, 200); // Director Email
+  sheet.setColumnWidth(3, 120); // Team Name
+  sheet.setColumnWidth(4, 100); // Type
+  sheet.setColumnWidth(5, 250); // Tab Name
+  
+  // Freeze header row
+  sheet.setFrozenRows(1);
+  
+  // Add note
+  sheet.getRange('A7').setValue('ℹ️ Tab Name is optional - if empty, will auto-generate based on Type + Team Name')
+    .setFontColor('#666666')
+    .setFontSize(9);
+  
+  Logger.log('✅ Created: 👥 Director Config');
+}
+
 function setupInstructions(ss) {
   const sheet = ss.insertSheet('📖 Instructions');
   
@@ -193,5 +235,53 @@ function setupInstructions(ss) {
   ss.setActiveSheet(sheet);
   
   Logger.log('✅ Created: 📖 Instructions');
+}
+
+/**
+ * Helper function to add Director Config tab to existing Control Sheet
+ * Run this if you already have a Control Sheet and want to add director support
+ */
+function addDirectorConfigToExistingControlSheet() {
+  const CONTROL_SHEET_ID = '1Jq5y0tJT5Qx9Wn8YqGzZKJH7R0P3M2L1K0J9H8G'; // Replace with your Control Sheet ID
+  
+  try {
+    const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    
+    // Check if tab already exists
+    if (ss.getSheetByName('👥 Director Config')) {
+      Logger.log('⚠️ Director Config tab already exists');
+      return;
+    }
+    
+    setupDirectorConfig(ss);
+    Logger.log('✅ Director Config tab added to existing Control Sheet');
+    Logger.log(`   URL: ${ss.getUrl()}`);
+    
+  } catch (e) {
+    Logger.log(`❌ Error: ${e.message}`);
+    Logger.log('Make sure to update CONTROL_SHEET_ID constant in this function');
+  }
+}
+
+/**
+ * Test function for directors - updates all director consolidated pipelines
+ */
+function testDirectorPipelines() {
+  Logger.log('=== Testing Director Pipelines ===\n');
+  
+  try {
+    const result = updateAllDirectorConsolidatedPipelines();
+    
+    if (result.success) {
+      Logger.log(`\n✅ Success! Updated ${result.directorCount} director(s) in ${result.duration}s`);
+      Logger.log('\nCheck your Control Sheet for director tabs (e.g., "🎯 Director - US Sales Team")');
+    } else {
+      Logger.log(`\n❌ Failed: ${result.error}`);
+    }
+    
+  } catch (e) {
+    Logger.log(`\n❌ Error: ${e.message}`);
+    Logger.log(e.stack);
+  }
 }
 
