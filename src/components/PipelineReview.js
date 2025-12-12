@@ -16,6 +16,16 @@
 
 // Note: TAB_PIPELINE is defined in SheetProvisioner.js
 
+// Stage mapping (ID to Name)
+const STAGE_MAP = {
+  '90284257': 'Create Curiosity',
+  '90284258': 'Needs Analysis',
+  '90284259': 'Demonstrating Value',
+  '90284260': 'Partnership Proposal',
+  '90284261': 'Negotiation',
+  '90284262': 'Partnership Confirmed'
+};
+
 // Colors for call quality scoring (same as Enrollment Tracker)
 const SCORE_COLORS = {
   RED: '#f4cccc',      // 0-2: Red
@@ -320,6 +330,11 @@ function buildPipelineDataArray(deals, preservedMap) {
       // Special handling for Notes (manual field)
       else if (field.property === '__notes__') {
         value = preserved.notes || '';
+      }
+      // Special handling for Stage (map ID to name)
+      else if (field.property === 'dealstage') {
+        const stageId = properties.dealstage || '';
+        value = STAGE_MAP[stageId] || stageId; // Fallback to ID if not found
       }
       // HubSpot properties
       else {
