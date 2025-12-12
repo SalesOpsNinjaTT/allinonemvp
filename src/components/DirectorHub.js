@@ -525,9 +525,9 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
     Logger.log(`    Created tab: ${director.tabName}`);
   }
   
-  // Step 1: Capture director's existing highlighting (DISABLED for MVP performance)
-  // const preservedHighlighting = captureDirectorHighlighting(sheet); // TODO: Re-enable after optimization
-  const preservedHighlighting = new Map(); // Empty for MVP
+  // Step 1: Capture director's existing highlighting
+  Logger.log(`    Capturing director highlighting...`);
+  const preservedHighlighting = captureDirectorHighlighting(sheet);
   
   // Step 2: Get all AEs from this director's team
   const teamAEs = config.salespeople.filter(p => p.team === director.team);
@@ -577,10 +577,9 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
     allDeals.splice(MAX_DIRECTOR_DEALS);
   }
   
-  // Step 4: Collect notes from all individual AE sheets (FAST - skip for MVP)
-  Logger.log(`    Skipping note collection for MVP performance...`);
-  const notesMap = new Map(); // Empty map for MVP
-  // const notesMap = collectNotesFromTeamAEs(teamAEs); // TODO: Re-enable after optimization
+  // Step 4: Collect notes from all individual AE sheets
+  Logger.log(`    Collecting notes from AE sheets...`);
+  const notesMap = collectNotesFromTeamAEs(teamAEs);
   
   // Step 5: Build consolidated data array
   Logger.log(`    Building data array for ${allDeals.length} deals...`);
