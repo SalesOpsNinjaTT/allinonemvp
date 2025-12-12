@@ -195,29 +195,58 @@ function capturePreservedData(sheet) {
 function fetchDealsForAE(person) {
   const token = getHubSpotToken();
   
+  // Calculate 90-day window
+  const today = new Date();
+  const ninetyDaysAgo = new Date(today);
+  ninetyDaysAgo.setDate(today.getDate() - 90);
+  
   // Build filter for this AE's deals
   const filterGroups = [];
   
-  // Filter by email or HubSpot User ID
+  // Filter by email or HubSpot User ID + Stage + Date + Exclude Closed Lost
+  const baseFilters = [];
+  
+  // 1. Owner filter
   if (person.hubspotUserId && person.hubspotUserId !== '') {
-    filterGroups.push({
-      filters: [{
-        propertyName: 'hubspot_owner_id',
-        operator: 'EQ',
-        value: person.hubspotUserId
-      }]
+    baseFilters.push({
+      propertyName: 'hubspot_owner_id',
+      operator: 'EQ',
+      value: person.hubspotUserId
     });
   } else {
     // Fallback: filter by email (if HubSpot User ID not available)
     Logger.log(`  Warning: No HubSpot User ID for ${person.name}, using email filter`);
-    filterGroups.push({
-      filters: [{
-        propertyName: 'hubspot_owner_email',
-        operator: 'EQ',
-        value: person.email
-      }]
+    baseFilters.push({
+      propertyName: 'hubspot_owner_email',
+      operator: 'EQ',
+      value: person.email
     });
   }
+  
+  // 2. Stage filter - Only Negotiation (90284261) and Partnership Proposal (90284260)
+  baseFilters.push({
+    propertyName: 'dealstage',
+    operator: 'IN',
+    values: ['90284261', '90284260']
+  });
+  
+  // 3. Date filter - Last 90 days
+  baseFilters.push({
+    propertyName: 'createdate',
+    operator: 'GTE',
+    value: ninetyDaysAgo.getTime()
+  });
+  
+  // 4. Exclude Closed Lost deals
+  baseFilters.push({
+    propertyName: 'closed_status',
+    operator: 'NEQ',
+    value: 'Closed lost (please specify the reason)'
+  });
+  
+  filterGroups.push({
+    filters: baseFilters
+  });
   
   // Fetch from HubSpot
   const url = 'https://api.hubapi.com/crm/v3/objects/deals/search';
