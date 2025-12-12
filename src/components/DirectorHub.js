@@ -670,6 +670,7 @@ function collectNotesFromTeamAEs(teamAEs) {
         const notes = row[NOTES_COLUMN_INDEX] || ''; // Column 6 (index 5)
         
         if (dealId && notes) {
+          Logger.log(`      Found note for deal ${dealId}: "${notes.substring(0, 50)}..."`);
           notesMap.set(dealId, notes);
         }
       });
@@ -680,6 +681,9 @@ function collectNotesFromTeamAEs(teamAEs) {
   });
   
   Logger.log(`    Collected notes for ${notesMap.size} deals`);
+  if (notesMap.size > 0) {
+    Logger.log(`    Deal IDs with notes: ${Array.from(notesMap.keys()).join(', ')}`);
+  }
   return notesMap;
 }
 
@@ -730,6 +734,8 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
     const stageId = properties.dealstage || '';
     const stageName = STAGE_MAP[stageId] || stageId; // Fallback to ID if not found
     
+    const noteFromAE = notesMap.get(dealId) || '';
+    
     const row = [
       dealId, // A - Deal ID
       properties.dealname || '', // B - Deal Name
@@ -737,7 +743,7 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       stageName, // D - Stage (NAME, not ID)
       formatDate(properties.notes_last_updated), // E - Last Activity
       formatDate(properties.notes_next_activity_date), // F - Next Activity
-      notesMap.get(dealId) || '', // G - Notes from AE
+      noteFromAE, // G - Notes from AE
       properties.why_not_purchase_today_ || '', // H - Why Not Purchase Today
       // Call Quality scores (ALL 13 fields) I-U
       properties.s_discovery_a_questioning_technique || '',
