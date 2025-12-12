@@ -780,7 +780,7 @@ function writeConsolidatedPipelineData(sheet, dataArray) {
     const dealName = dataArray[i][1]; // Deal Name (Column B)
     
     if (dealId && dealName) {
-      const dealUrl = `https://app-eu1.hubspot.com/contacts/25196166/record/0-1/${dealId}`;
+      const dealUrl = `https://app-eu1.hubspot.com/contacts/25196166/record/0-3/${dealId}`;
       const richText = SpreadsheetApp.newRichTextValue()
         .setText(dealName)
         .setLinkUrl(dealUrl)
