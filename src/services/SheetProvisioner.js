@@ -1,13 +1,9 @@
 /**
  * Sheet Provisioner
  * Handles self-provisioning of individual salesperson sheets
+ * 
+ * Note: TAB constants are defined in Constants.js
  */
-
-// Tab names for individual sheets
-const TAB_PIPELINE = '📊 Pipeline Review';
-const TAB_BONUSES = '💰 Bonus Calculation';
-const TAB_ENROLLMENT = '📚 Enrollment Tracker';
-const TAB_OPS_METRICS = '📞 Operational Metrics';
 
 /**
  * Get or create individual sheet for a salesperson
@@ -80,9 +76,9 @@ function initializeIndividualSheet(ss) {
   
   // Create 4 tabs
   const pipelineTab = ss.insertSheet(TAB_PIPELINE);
-  const bonusesTab = ss.insertSheet(TAB_BONUSES);
+  const bonusesTab = ss.insertSheet(TAB_BONUS);
   const enrollmentTab = ss.insertSheet(TAB_ENROLLMENT);
-  const opsTab = ss.insertSheet(TAB_OPS_METRICS);
+  const opsTab = ss.insertSheet(TAB_OPERATIONAL);
   
   // Set up Pipeline Review tab
   pipelineTab.getRange('A1').setValue('Pipeline Review - Will be populated by script');

@@ -3,16 +3,13 @@
  * Reads configuration from Control Sheet
  */
 
+// Note: TAB_CONFIG, TAB_GOALS, TAB_TECH, TAB_DIRECTORS, TAB_TIER_LEVELS are defined in Constants.js
+
 // Control Sheet ID - All-In-One 2.0 MVP
 const CONTROL_SHEET_ID = '1-zipx1vWfjYaMjgl7BbqfCVjl8NZch9DMk5T-DRfnnQ';
 
-// Control Sheet Tab Names
-const TAB_CONFIG = '👥 Salespeople Config';
-const TAB_GOALS = '🎯 Goals & Quotas';
-const TAB_TECH = '🔧 Tech Access';
+// Additional ConfigManager-specific tab
 const TAB_SUMMARY = '📊 Summary Dashboard';
-const TAB_DIRECTORS = '👥 Director Config';
-const TAB_TIER_LEVELS = 'tiers';
 
 /**
  * Finds a tab by checking both emoji and non-emoji versions
