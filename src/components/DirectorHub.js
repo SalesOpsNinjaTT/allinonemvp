@@ -626,11 +626,34 @@ function syncDirectorHighlightingToAESheets(salespeople) {
           
           if (highlighting) {
             const rowIndex = index + 2; // +2 for header row and 0-based index
-            const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, pipelineSheet.getLastColumn());
+            const aeColumnCount = pipelineSheet.getLastColumn();
+            
+            // Director sheets have Owner column (21 cols), AE sheets don't (20 cols)
+            // Need to remove Owner column (index 2) from highlighting arrays
+            let adjustedBackgrounds = [...highlighting.backgrounds];
+            let adjustedFontColors = [...highlighting.fontColors];
+            
+            // Remove column 3 (Owner, index 2) if director sheet has more columns
+            if (adjustedBackgrounds.length > aeColumnCount) {
+              adjustedBackgrounds.splice(2, 1); // Remove Owner column
+              adjustedFontColors.splice(2, 1);
+            }
+            
+            // Ensure arrays match AE column count
+            while (adjustedBackgrounds.length < aeColumnCount) {
+              adjustedBackgrounds.push('#ffffff'); // Default background
+              adjustedFontColors.push('#000000'); // Default font color
+            }
+            while (adjustedBackgrounds.length > aeColumnCount) {
+              adjustedBackgrounds.pop();
+              adjustedFontColors.pop();
+            }
+            
+            const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, aeColumnCount);
             
             // Apply director's highlighting to this row
-            rowRange.setBackgrounds([highlighting.backgrounds]);
-            rowRange.setFontColors([highlighting.fontColors]);
+            rowRange.setBackgrounds([adjustedBackgrounds]);
+            rowRange.setFontColors([adjustedFontColors]);
             appliedCount++;
           }
         });
