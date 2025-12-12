@@ -651,7 +651,7 @@ function syncDirectorHighlightingToAESheets(salespeople) {
               return;
             }
             
-            // Director sheets have Owner column (21 cols), AE sheets don't (20 cols)
+            // Director sheets have Owner column (22 cols), AE sheets don't (21 cols)
             // Need to remove Owner column (index 2) from highlighting arrays
             let adjustedBackgrounds = [...highlighting.backgrounds];
             let adjustedFontColors = [...highlighting.fontColors];
@@ -886,14 +886,14 @@ function collectNotesFromTeamAEs(teamAEs) {
       const lastRow = pipelineSheet.getLastRow();
       if (lastRow < 2) return;
       
-      // Read Deal IDs and Notes (Notes is in column 6, not last column)
-      // Column order: Deal ID | Deal Name | Stage | Last Activity | Next Activity | Notes | Why Not Purchase | [Call Quality 13 fields]
-      const NOTES_COLUMN_INDEX = 5; // Column F (0-based index)
-      const data = pipelineSheet.getRange(2, 1, lastRow - 1, Math.max(6, pipelineSheet.getLastColumn())).getValues();
+      // Read Deal IDs and Notes (Notes is in column 7, not last column)
+      // Column order: Deal ID | Deal Name | Stage | Last Activity | Next Activity | Owner Assigned | Notes | Why Not Purchase | [Call Quality 13 fields]
+      const NOTES_COLUMN_INDEX = 6; // Column G (0-based index)
+      const data = pipelineSheet.getRange(2, 1, lastRow - 1, Math.max(7, pipelineSheet.getLastColumn())).getValues();
       
       data.forEach(row => {
         const dealId = row[0]?.toString();
-        const notes = row[NOTES_COLUMN_INDEX] || ''; // Column 6 (index 5)
+        const notes = row[NOTES_COLUMN_INDEX] || ''; // Column 7 (index 6)
         
         if (dealId && notes) {
           Logger.log(`      Found note for deal ${dealId}: "${notes.substring(0, 50)}..."`);
@@ -923,7 +923,7 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
   const dataArray = [];
   
   // Headers - Optimized order per director request
-  // ORDER: Deal Name → Owner → Stage → Last Activity → Next Activity → Notes → Why Not Purchase → [Call Quality 13]
+  // ORDER: Deal Name → Owner → Stage → Last Activity → Next Activity → Owner Assigned → Notes → Why Not Purchase → [Call Quality 13]
   const headers = [
     'Deal ID', // Hidden (A)
     'Deal Name', // (B)
@@ -931,9 +931,10 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
     'Stage', // (D)
     'Last Activity', // (E)
     'Next Activity', // (F)
-    'Notes', // From AE (G)
-    'Why Not Purchase Today', // (H)
-    // Call Quality columns (matching PipelineReview.js order - ALL 13 fields) (I-U)
+    'Owner Assigned', // (G)
+    'Notes', // From AE (H)
+    'Why Not Purchase Today', // (I)
+    // Call Quality columns (matching PipelineReview.js order - ALL 13 fields) (J-V)
     'Questioning',
     'Trust',
     'Recap Needs',
@@ -969,9 +970,10 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
       stageName, // D - Stage (NAME, not ID)
       formatDate(properties.notes_last_updated), // E - Last Activity
       formatDate(properties.notes_next_activity_date), // F - Next Activity
-      noteFromAE, // G - Notes from AE
-      properties.why_not_purchase_today_ || '', // H - Why Not Purchase Today
-      // Call Quality scores (ALL 13 fields) I-U
+      formatDate(properties.hubspot_owner_assigneddate), // G - Owner Assigned
+      noteFromAE, // H - Notes from AE
+      properties.why_not_purchase_today_ || '', // I - Why Not Purchase Today
+      // Call Quality scores (ALL 13 fields) J-V
       properties.s_discovery_a_questioning_technique || '',
       properties.s_discovery_a_empathy__rapport_building_and_active_listening || '',
       properties.s_building_value_a_recap_of_students_needs || '',

@@ -28,6 +28,7 @@ const PIPELINE_PROPERTIES = [
   'dealname',
   'dealstage',
   'hubspot_owner_id',
+  'hubspot_owner_assigneddate',
   'notes_last_updated',
   'notes_next_activity_date',
   'why_not_purchase_today_',
@@ -51,13 +52,14 @@ const PIPELINE_PROPERTIES = [
 ];
 
 // Field configuration for Pipeline Review
-// ORDER: Deal Name → Stage → Last Activity → Next Activity → Notes → Why Not Purchase → [Call Quality]
+// ORDER: Deal Name → Stage → Last Activity → Next Activity → Owner Assigned → Notes → Why Not Purchase → [Call Quality]
 const PIPELINE_FIELDS = [
   { property: 'dealId', header: 'Deal ID', hidden: true, type: 'text' },
   { property: 'dealname', header: 'Deal Name', hyperlink: true, type: 'text' },
   { property: 'dealstage', header: 'Stage', type: 'text' },
   { property: 'notes_last_updated', header: 'Last Activity', type: 'date' },
   { property: 'notes_next_activity_date', header: 'Next Activity', type: 'date' },
+  { property: 'hubspot_owner_assigneddate', header: 'Owner Assigned', type: 'date' },
   { property: '__notes__', header: 'Notes', editable: true, preserve: true, type: 'manual' }, // Manual field
   { property: 'why_not_purchase_today_', header: 'Why Not Purchase Today', type: 'text' },
   // Call Quality columns at the END (ALL 13 fields)
