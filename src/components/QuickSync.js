@@ -30,7 +30,8 @@ function pushMyNotesToDirector() {
     
     // Step 2: Load config to find my details
     const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
-    const salespeople = loadConfiguration();
+    const config = loadConfiguration();
+    const { salespeople } = config;
     const me = salespeople.find(p => p.sheetId === mySheetId);
     
     if (!me) {
@@ -186,7 +187,8 @@ function syncHighlightingToMyTeam() {
     }
     
     // Step 4: Find all AEs on this team
-    const salespeople = loadConfiguration();
+    const config = loadConfiguration();
+    const { salespeople } = config;
     const teamAEs = salespeople.filter(p => 
       p.team && p.team.toLowerCase() === director.team.toLowerCase() && p.sheetId
     );
