@@ -5,18 +5,10 @@
  * Includes manual flagging system and automatic conditional formatting
  */
 
+// Note: STAGE_MAP and TAB constants are defined in Constants.js
+
 // Tab name constant
 const TAB_DIRECTOR_HUB = '👔 Director Hub';
-
-// Stage mapping (ID to Name)
-const STAGE_MAP = {
-  '90284257': 'Create Curiosity',
-  '90284258': 'Needs Analysis',
-  '90284259': 'Demonstrating Value',
-  '90284260': 'Partnership Proposal',
-  '90284261': 'Negotiation',
-  '90284262': 'Partnership Confirmed'
-};
 
 // Director priority flags
 const PRIORITY_FLAGS = {
