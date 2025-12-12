@@ -96,10 +96,14 @@ function generateAllDashboards() {
       Logger.log(`❌ Director Pipelines failed: ${directorResult.error}`);
     }
     
-    // 4. Sync director flags from Director Hub to AE sheets - Temporarily disabled for MVP
-    // Logger.log(`\n=== Syncing Director Flags to AE Sheets ===`);
-    // const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
-    // syncDirectorFlagsToAESheets(controlSheet, salespeople);
+    // 4. Sync director highlighting back to AE sheets (bi-directional sync)
+    Logger.log(`\n=== Syncing Director Highlighting to AE Sheets ===`);
+    const highlightSyncResult = syncDirectorHighlightingToAESheets(salespeople);
+    if (highlightSyncResult.success) {
+      Logger.log(`✅ Highlighting Sync: ${highlightSyncResult.syncCount} deal(s) highlighted`);
+    } else {
+      Logger.log(`❌ Highlighting Sync failed: ${highlightSyncResult.error}`);
+    }
     
     // 5. Summary
     const endTime = new Date();

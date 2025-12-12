@@ -534,6 +534,136 @@ function updateAllDirectorConsolidatedPipelines() {
 }
 
 /**
+ * Syncs director highlighting back to individual AE sheets
+ * Reads highlighting from all director sheets and applies to matching deals in AE sheets
+ * @param {Array} salespeople - Array of salesperson configs
+ * @returns {Object} Sync result
+ */
+function syncDirectorHighlightingToAESheets(salespeople) {
+  try {
+    Logger.log('[Director → AE Sync] Syncing highlighting from directors to AE sheets...');
+    const startTime = new Date();
+    
+    // Load director configuration
+    const directors = getDirectorConfig();
+    if (directors.length === 0) {
+      Logger.log('  No directors configured, skipping');
+      return { success: true, syncCount: 0 };
+    }
+    
+    const controlSheet = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    
+    // Step 1: Collect highlighting from all director sheets (by Deal ID)
+    const directorHighlightingMap = new Map(); // Deal ID → {background, fontColor, directorName}
+    
+    directors.forEach(director => {
+      const directorTab = controlSheet.getSheetByName(director.tabName);
+      if (!directorTab) {
+        Logger.log(`  Director tab "${director.tabName}" not found, skipping`);
+        return;
+      }
+      
+      const lastRow = directorTab.getLastRow();
+      if (lastRow < 2) return;
+      
+      // Read Deal IDs and highlighting
+      const dealIds = directorTab.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+      const backgrounds = directorTab.getRange(2, 1, lastRow - 1, directorTab.getLastColumn()).getBackgrounds();
+      const fontColors = directorTab.getRange(2, 1, lastRow - 1, directorTab.getLastColumn()).getFontColors();
+      
+      dealIds.forEach((dealId, index) => {
+        if (!dealId) return;
+        
+        const dealIdStr = dealId.toString();
+        const rowBackground = backgrounds[index];
+        const rowFontColor = fontColors[index];
+        
+        // Check if row has any non-default highlighting
+        const hasHighlighting = rowBackground.some(color => color !== '#ffffff' && color !== '#fff' && color !== '') ||
+                                 rowFontColor.some(color => color !== '#000000' && color !== '#000' && color !== '');
+        
+        if (hasHighlighting) {
+          directorHighlightingMap.set(dealIdStr, {
+            backgrounds: rowBackground,
+            fontColors: rowFontColor,
+            directorName: director.name
+          });
+        }
+      });
+    });
+    
+    Logger.log(`  Collected highlighting for ${directorHighlightingMap.size} deals from ${directors.length} director(s)`);
+    
+    // Step 2: Apply highlighting to each AE's Pipeline Review sheet
+    let syncCount = 0;
+    salespeople.forEach(person => {
+      if (!person.sheetId) {
+        Logger.log(`    No sheet ID for ${person.name}, skipping`);
+        return;
+      }
+      
+      try {
+        const aeSheet = SpreadsheetApp.openById(person.sheetId);
+        const pipelineSheet = aeSheet.getSheetByName(TAB_PIPELINE);
+        
+        if (!pipelineSheet) {
+          Logger.log(`    No Pipeline Review tab for ${person.name}, skipping`);
+          return;
+        }
+        
+        const lastRow = pipelineSheet.getLastRow();
+        if (lastRow < 2) return;
+        
+        // Read Deal IDs from AE sheet
+        const aeDealIds = pipelineSheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+        
+        let appliedCount = 0;
+        aeDealIds.forEach((dealId, index) => {
+          if (!dealId) return;
+          
+          const dealIdStr = dealId.toString();
+          const highlighting = directorHighlightingMap.get(dealIdStr);
+          
+          if (highlighting) {
+            const rowIndex = index + 2; // +2 for header row and 0-based index
+            const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, pipelineSheet.getLastColumn());
+            
+            // Apply director's highlighting to this row
+            rowRange.setBackgrounds([highlighting.backgrounds]);
+            rowRange.setFontColors([highlighting.fontColors]);
+            appliedCount++;
+          }
+        });
+        
+        if (appliedCount > 0) {
+          Logger.log(`    ${person.name}: Applied highlighting to ${appliedCount} deal(s)`);
+          syncCount += appliedCount;
+        }
+        
+      } catch (e) {
+        Logger.log(`    Error syncing to ${person.name}: ${e.message}`);
+      }
+    });
+    
+    const duration = (new Date() - startTime) / 1000;
+    Logger.log(`[Director → AE Sync] Complete: ${syncCount} deals highlighted across ${salespeople.length} AE(s) (${duration}s)`);
+    
+    return {
+      success: true,
+      syncCount: syncCount,
+      duration: duration
+    };
+    
+  } catch (error) {
+    Logger.log(`[Director → AE Sync] Error: ${error.message}`);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Updates a single director's consolidated pipeline tab
  * @param {Object} director - Director config
  * @param {Object} config - Main configuration
