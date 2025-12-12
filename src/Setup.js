@@ -240,26 +240,34 @@ function setupInstructions(ss) {
 /**
  * Helper function to add Director Config tab to existing Control Sheet
  * Run this if you already have a Control Sheet and want to add director support
+ * Uses the CONTROL_SHEET_ID from ConfigManager.js
  */
 function addDirectorConfigToExistingControlSheet() {
-  const CONTROL_SHEET_ID = '1Jq5y0tJT5Qx9Wn8YqGzZKJH7R0P3M2L1K0J9H8G'; // Replace with your Control Sheet ID
-  
   try {
+    // Use the CONTROL_SHEET_ID from ConfigManager.js
     const ss = SpreadsheetApp.openById(CONTROL_SHEET_ID);
+    
+    Logger.log(`Opening Control Sheet: ${ss.getName()}`);
+    Logger.log(`URL: ${ss.getUrl()}`);
     
     // Check if tab already exists
     if (ss.getSheetByName('👥 Director Config')) {
       Logger.log('⚠️ Director Config tab already exists');
+      Logger.log('   If you want to recreate it, delete the existing tab first');
       return;
     }
     
     setupDirectorConfig(ss);
     Logger.log('✅ Director Config tab added to existing Control Sheet');
-    Logger.log(`   URL: ${ss.getUrl()}`);
+    Logger.log(`   Refresh the sheet to see the new tab`);
     
   } catch (e) {
     Logger.log(`❌ Error: ${e.message}`);
-    Logger.log('Make sure to update CONTROL_SHEET_ID constant in this function');
+    Logger.log(`   Stack: ${e.stack}`);
+    Logger.log('');
+    Logger.log('Troubleshooting:');
+    Logger.log('1. Make sure CONTROL_SHEET_ID is set correctly in ConfigManager.js');
+    Logger.log('2. Make sure you have edit access to the Control Sheet');
   }
 }
 
