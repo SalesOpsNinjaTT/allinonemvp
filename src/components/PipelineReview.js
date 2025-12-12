@@ -381,7 +381,7 @@ function writeDataToSheet(sheet, dataArray) {
       const dealName = dataArray[i][dealNameColIndex - 1];
       
       if (dealId && dealName) {
-        const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
+        const dealUrl = `https://app-eu1.hubspot.com/contacts/25196166/record/0-1/${dealId}`;
         const richText = SpreadsheetApp.newRichTextValue()
           .setText(dealName)
           .setLinkUrl(dealUrl)
