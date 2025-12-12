@@ -515,8 +515,9 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
     Logger.log(`    Created tab: ${director.tabName}`);
   }
   
-  // Step 1: Capture director's existing highlighting (by Deal ID)
-  const preservedHighlighting = captureDirectorHighlighting(sheet);
+  // Step 1: Capture director's existing highlighting (DISABLED for MVP performance)
+  // const preservedHighlighting = captureDirectorHighlighting(sheet); // TODO: Re-enable after optimization
+  const preservedHighlighting = new Map(); // Empty for MVP
   
   // Step 2: Get all AEs from this director's team
   const teamAEs = config.salespeople.filter(p => p.team === director.team);
@@ -543,8 +544,33 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
   
   Logger.log(`    Fetched ${allDeals.length} deals from team`);
   
-  // Step 4: Collect notes from all individual AE sheets
-  const notesMap = collectNotesFromTeamAEs(teamAEs);
+  // Step 3.5: Sort deals by priority (most recent first) and limit to prevent timeout
+  // Priority: Recent Next Activity > Recent Last Activity > Stage
+  const MAX_DIRECTOR_DEALS = 200; // Limit to prevent timeout with large teams
+  allDeals.sort((a, b) => {
+    const aNext = a.properties?.notes_next_activity_date || '';
+    const bNext = b.properties?.notes_next_activity_date || '';
+    const aLast = a.properties?.notes_last_updated || '';
+    const bLast = b.properties?.notes_last_updated || '';
+    
+    // Prioritize deals with upcoming next activity
+    if (aNext && !bNext) return -1;
+    if (!aNext && bNext) return 1;
+    if (aNext && bNext) return bNext.localeCompare(aNext); // Most recent first
+    
+    // Then by last activity
+    return bLast.localeCompare(aLast); // Most recent first
+  });
+  
+  if (allDeals.length > MAX_DIRECTOR_DEALS) {
+    Logger.log(`    ⚠️ Limiting to ${MAX_DIRECTOR_DEALS} most recent deals (from ${allDeals.length})`);
+    allDeals.splice(MAX_DIRECTOR_DEALS);
+  }
+  
+  // Step 4: Collect notes from all individual AE sheets (FAST - skip for MVP)
+  Logger.log(`    Skipping note collection for MVP performance...`);
+  const notesMap = new Map(); // Empty map for MVP
+  // const notesMap = collectNotesFromTeamAEs(teamAEs); // TODO: Re-enable after optimization
   
   // Step 5: Build consolidated data array
   Logger.log(`    Building data array for ${allDeals.length} deals...`);
@@ -732,20 +758,30 @@ function buildConsolidatedPipelineDataArray(allDeals, notesMap) {
 function writeConsolidatedPipelineData(sheet, dataArray) {
   if (dataArray.length === 0) return;
   
-  // Write all data
+  // Write all data at once (FAST)
   sheet.getRange(1, 1, dataArray.length, dataArray[0].length).setValues(dataArray);
   
-  // Add hyperlinks for Deal Name column (Column B)
-  for (let i = 2; i <= dataArray.length; i++) {
-    const dealId = sheet.getRange(i, 1).getValue();
-    if (dealId) {
+  // Add hyperlinks for Deal Name column (Column B) - BATCH OPERATION
+  const richTextValues = [];
+  for (let i = 1; i < dataArray.length; i++) { // Skip header (index 0)
+    const dealId = dataArray[i][0]; // Deal ID (Column A)
+    const dealName = dataArray[i][1]; // Deal Name (Column B)
+    
+    if (dealId && dealName) {
       const dealUrl = `https://app.hubspot.com/contacts/47363978/deal/${dealId}`;
       const richText = SpreadsheetApp.newRichTextValue()
-        .setText(sheet.getRange(i, 2).getValue())
+        .setText(dealName)
         .setLinkUrl(dealUrl)
         .build();
-      sheet.getRange(i, 2).setRichTextValue(richText);
+      richTextValues.push([richText]);
+    } else {
+      richTextValues.push([SpreadsheetApp.newRichTextValue().setText(dealName || '').build()]);
     }
+  }
+  
+  // Apply all hyperlinks at once (FAST - single API call instead of 300+)
+  if (richTextValues.length > 0) {
+    sheet.getRange(2, 2, richTextValues.length, 1).setRichTextValues(richTextValues);
   }
 }
 
