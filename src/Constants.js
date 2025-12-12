@@ -24,7 +24,7 @@ const STAGE_MAP = {
 // Individual AE Sheet tabs
 const TAB_PIPELINE = '📊 Pipeline Review';
 const TAB_BONUS = '💰 Bonus Calculation';
-const TAB_ENROLLMENT = '📈 Enrollment Tracker';
+const TAB_ENROLLMENT = '📚 Enrollment Tracker';
 const TAB_OPERATIONAL = '📊 Operational Metrics';
 
 // Control Sheet tabs

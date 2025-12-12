@@ -614,9 +614,18 @@ function syncDirectorHighlightingToAESheets(salespeople) {
         const lastRow = pipelineSheet.getLastRow();
         if (lastRow < 2) return;
         
-        // Read Deal IDs from AE sheet
-        const aeDealIds = pipelineSheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+        const aeColumnCount = pipelineSheet.getLastColumn();
+        const dataRowCount = lastRow - 1;
         
+        // Read Deal IDs from AE sheet (BATCH)
+        const aeDealIds = pipelineSheet.getRange(2, 1, dataRowCount, 1).getValues().flat();
+        
+        // Read current backgrounds and font colors (BATCH)
+        const dataRange = pipelineSheet.getRange(2, 1, dataRowCount, aeColumnCount);
+        const currentBackgrounds = dataRange.getBackgrounds();
+        const currentFontColors = dataRange.getFontColors();
+        
+        // Update highlighting for matched deals
         let appliedCount = 0;
         aeDealIds.forEach((dealId, index) => {
           if (!dealId) return;
@@ -625,9 +634,6 @@ function syncDirectorHighlightingToAESheets(salespeople) {
           const highlighting = directorHighlightingMap.get(dealIdStr);
           
           if (highlighting) {
-            const rowIndex = index + 2; // +2 for header row and 0-based index
-            const aeColumnCount = pipelineSheet.getLastColumn();
-            
             // Director sheets have Owner column (21 cols), AE sheets don't (20 cols)
             // Need to remove Owner column (index 2) from highlighting arrays
             let adjustedBackgrounds = [...highlighting.backgrounds];
@@ -649,16 +655,17 @@ function syncDirectorHighlightingToAESheets(salespeople) {
               adjustedFontColors.pop();
             }
             
-            const rowRange = pipelineSheet.getRange(rowIndex, 1, 1, aeColumnCount);
-            
-            // Apply director's highlighting to this row
-            rowRange.setBackgrounds([adjustedBackgrounds]);
-            rowRange.setFontColors([adjustedFontColors]);
+            // Update this row in the arrays
+            currentBackgrounds[index] = adjustedBackgrounds;
+            currentFontColors[index] = adjustedFontColors;
             appliedCount++;
           }
         });
         
+        // Apply all highlighting changes in ONE batch operation (FAST!)
         if (appliedCount > 0) {
+          dataRange.setBackgrounds(currentBackgrounds);
+          dataRange.setFontColors(currentFontColors);
           Logger.log(`    ${person.name}: Applied highlighting to ${appliedCount} deal(s)`);
           syncCount += appliedCount;
         }
@@ -1073,24 +1080,42 @@ function applyCallQualityFormattingToConsolidated(sheet, dataArray) {
 function restoreDirectorHighlighting(sheet, dataArray, highlightMap) {
   if (highlightMap.size === 0) return;
   
-  for (let row = 2; row <= dataArray.length; row++) {
-    const dealId = sheet.getRange(row, 1).getValue()?.toString();
+  const dataRowCount = dataArray.length - 1; // Exclude header
+  if (dataRowCount < 1) return;
+  
+  const columnCount = dataArray[0].length;
+  const dataRange = sheet.getRange(2, 1, dataRowCount, columnCount);
+  
+  // Read current backgrounds and font colors (BATCH)
+  const currentBackgrounds = dataRange.getBackgrounds();
+  const currentFontColors = dataRange.getFontColors();
+  
+  // Update highlighting for preserved deals
+  let restoredCount = 0;
+  for (let i = 0; i < dataRowCount; i++) {
+    const dealId = dataArray[i + 1][0]?.toString(); // +1 for header row, [0] is Deal ID column
     if (!dealId) continue;
     
     const highlighting = highlightMap.get(dealId);
     if (!highlighting) continue;
     
-    const rowRange = sheet.getRange(row, 1, 1, dataArray[0].length);
-    
     if (highlighting.backgrounds) {
-      rowRange.setBackgrounds([highlighting.backgrounds]);
+      currentBackgrounds[i] = highlighting.backgrounds;
     }
     
     if (highlighting.fontColors) {
-      rowRange.setFontColors([highlighting.fontColors]);
+      currentFontColors[i] = highlighting.fontColors;
     }
+    
+    restoredCount++;
   }
   
-  Logger.log(`    Restored highlighting for ${highlightMap.size} deals`);
+  // Apply all highlighting changes in ONE batch operation (FAST!)
+  if (restoredCount > 0) {
+    dataRange.setBackgrounds(currentBackgrounds);
+    dataRange.setFontColors(currentFontColors);
+  }
+  
+  Logger.log(`    Restored highlighting for ${restoredCount} deals`);
 }
 
