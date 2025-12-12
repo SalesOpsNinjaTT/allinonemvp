@@ -759,9 +759,9 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
   
   Logger.log(`    Fetched ${allDeals.length} deals from team`);
   
-  // Step 3.5: Sort deals by priority (most recent first) and limit to prevent timeout
+  // Step 3.5: Sort deals by priority (most recent first)
   // Priority: Recent Next Activity > Recent Last Activity > Stage
-  const MAX_DIRECTOR_DEALS = 200; // Limit to prevent timeout with large teams
+  // Note: No deal limit - filters (Negotiation + Partnership Proposal + 90 days) naturally limit data
   allDeals.sort((a, b) => {
     const aNext = a.properties?.notes_next_activity_date || '';
     const bNext = b.properties?.notes_next_activity_date || '';
@@ -776,11 +776,6 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
     // Then by last activity
     return bLast.localeCompare(aLast); // Most recent first
   });
-  
-  if (allDeals.length > MAX_DIRECTOR_DEALS) {
-    Logger.log(`    ⚠️ Limiting to ${MAX_DIRECTOR_DEALS} most recent deals (from ${allDeals.length})`);
-    allDeals.splice(MAX_DIRECTOR_DEALS);
-  }
   
   // 🛡️ SAFEGUARD: Handle empty deal list gracefully
   if (allDeals.length === 0) {
