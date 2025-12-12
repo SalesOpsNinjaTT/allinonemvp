@@ -31,6 +31,11 @@ function onOpen() {
       .addSeparator()
       .addItem('⚪ Clear Flag', 'clearFlag')
       .addToUi();
+    
+    // Quick Sync menu (for directors)
+    ui.createMenu('⚡ Quick Sync')
+      .addItem('📥 Sync Highlighting to Team', 'syncHighlightingToMyTeam')
+      .addToUi();
   } catch (error) {
     Logger.log(`[onOpen] Error: ${error.message}`);
   }

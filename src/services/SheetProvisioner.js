@@ -6,6 +6,86 @@
  */
 
 /**
+ * Creates custom menu for AE sheets
+ * Called by onOpen trigger in individual AE sheets
+ */
+function onOpenAESheet() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    ui.createMenu('⚡ Quick Sync')
+      .addItem('📤 Push My Notes to Director', 'pushMyNotesToDirector')
+      .addToUi();
+  } catch (error) {
+    Logger.log(`[AE onOpen] Error: ${error.message}`);
+  }
+}
+
+/**
+ * Installs onOpen trigger for an individual AE sheet
+ * @param {Spreadsheet} spreadsheet - The AE's spreadsheet
+ */
+function installAEMenuTrigger(spreadsheet) {
+  try {
+    // Delete any existing onOpen triggers for this spreadsheet
+    const existingTriggers = ScriptApp.getUserTriggers(spreadsheet);
+    existingTriggers.forEach(trigger => {
+      if (trigger.getHandlerFunction() === 'onOpenAESheet') {
+        ScriptApp.deleteTrigger(trigger);
+      }
+    });
+    
+    // Create new trigger
+    ScriptApp.newTrigger('onOpenAESheet')
+      .forSpreadsheet(spreadsheet)
+      .onOpen()
+      .create();
+    
+    Logger.log(`  Installed Quick Sync menu trigger for ${spreadsheet.getName()}`);
+  } catch (error) {
+    Logger.log(`  Warning: Could not install menu trigger: ${error.message}`);
+  }
+}
+
+/**
+ * UTILITY: Install Quick Sync menus on all existing AE sheets
+ * Run this once to add menus to sheets created before this feature
+ */
+function installQuickSyncMenusOnAllAESheets() {
+  try {
+    Logger.log('[Quick Sync Setup] Installing menus on all AE sheets...');
+    
+    const salespeople = loadConfiguration();
+    let successCount = 0;
+    let errorCount = 0;
+    
+    salespeople.forEach(person => {
+      if (!person.sheetId) {
+        Logger.log(`  Skipping ${person.name} (no sheet ID)`);
+        return;
+      }
+      
+      try {
+        const sheet = SpreadsheetApp.openById(person.sheetId);
+        installAEMenuTrigger(sheet);
+        successCount++;
+      } catch (error) {
+        Logger.log(`  ❌ Error for ${person.name}: ${error.message}`);
+        errorCount++;
+      }
+    });
+    
+    Logger.log(`[Quick Sync Setup] Complete: ${successCount} installed, ${errorCount} errors`);
+    Logger.log('AEs should close and reopen their sheets to see the new menu.');
+    
+    return `Success! Installed on ${successCount} sheets. AEs should close and reopen.`;
+    
+  } catch (error) {
+    Logger.log(`[Quick Sync Setup] Error: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Get or create individual sheet for a salesperson
  * @param {Object} person - Person object {name, email, sheetId}
  * @param {Array} techAccessEmails - Automation account emails
@@ -26,6 +106,9 @@ function getOrCreatePersonSheet(person, techAccessEmails, configSheet, rowIndex)
     
     // Initialize with 4 tabs
     initializeIndividualSheet(newSpreadsheet);
+    
+    // Install onOpen trigger for Quick Sync menu
+    installAEMenuTrigger(newSpreadsheet);
     
     // Share with salesperson
     if (person.email) {
