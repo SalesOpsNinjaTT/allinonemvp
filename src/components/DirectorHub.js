@@ -27,6 +27,36 @@ const PRIORITY_FLAGS = {
 };
 
 /**
+ * Formats a date value to YYYY-MM-DD
+ * @param {string|number|Date} dateValue - Date to format
+ * @returns {string} Formatted date or empty string
+ */
+function formatDate(dateValue) {
+  if (!dateValue) return '';
+  
+  try {
+    let date;
+    if (typeof dateValue === 'string') {
+      date = new Date(dateValue);
+    } else if (typeof dateValue === 'number') {
+      date = new Date(dateValue);
+    } else {
+      return '';
+    }
+    
+    if (isNaN(date.getTime())) return '';
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
  * Updates the Director Hub with all deals from the team
  * @param {Spreadsheet} controlSheet - The control spreadsheet
  * @param {Array<Object>} salespeople - Array of salesperson configs
@@ -585,6 +615,10 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
   Logger.log(`    Building data array for ${allDeals.length} deals...`);
   const dataArray = buildConsolidatedPipelineDataArray(allDeals, notesMap);
   Logger.log(`    Built array: ${dataArray.length} rows × ${dataArray[0].length} columns`);
+  Logger.log(`    Headers: ${dataArray[0].join(' | ')}`);
+  if (dataArray.length > 1) {
+    Logger.log(`    First data row sample: DealID=${dataArray[1][0]}, Name=${dataArray[1][1]}, Owner=${dataArray[1][2]}, Stage=${dataArray[1][3]}`);
+  }
   
   // Step 6: Write data to director's tab
   Logger.log(`    Writing data to sheet...`);
