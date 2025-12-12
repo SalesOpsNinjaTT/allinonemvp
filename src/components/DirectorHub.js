@@ -547,14 +547,20 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
   const notesMap = collectNotesFromTeamAEs(teamAEs);
   
   // Step 5: Build consolidated data array
+  Logger.log(`    Building data array for ${allDeals.length} deals...`);
   const dataArray = buildConsolidatedPipelineDataArray(allDeals, notesMap);
+  Logger.log(`    Built array: ${dataArray.length} rows × ${dataArray[0].length} columns`);
   
   // Step 6: Write data to director's tab
+  Logger.log(`    Writing data to sheet...`);
   sheet.clear();
   writeConsolidatedPipelineData(sheet, dataArray);
+  Logger.log(`    Data written`);
   
   // Step 7: Apply formatting and restore highlighting
+  Logger.log(`    Applying formatting...`);
   applyConsolidatedPipelineFormatting(sheet, dataArray, preservedHighlighting);
+  Logger.log(`    Formatting applied`);
   
   Logger.log(`    ✓ ${director.tabName} updated`);
 }
@@ -619,12 +625,14 @@ function collectNotesFromTeamAEs(teamAEs) {
       const lastRow = pipelineSheet.getLastRow();
       if (lastRow < 2) return;
       
-      // Read Deal IDs and Notes
-      const data = pipelineSheet.getRange(2, 1, lastRow - 1, pipelineSheet.getLastColumn()).getValues();
+      // Read Deal IDs and Notes (Notes is in column 6, not last column)
+      // Column order: Deal ID | Deal Name | Stage | Last Activity | Next Activity | Notes | Why Not Purchase | [Call Quality 13 fields]
+      const NOTES_COLUMN_INDEX = 5; // Column F (0-based index)
+      const data = pipelineSheet.getRange(2, 1, lastRow - 1, Math.max(6, pipelineSheet.getLastColumn())).getValues();
       
       data.forEach(row => {
         const dealId = row[0]?.toString();
-        const notes = row[row.length - 1]; // Last column is Notes
+        const notes = row[NOTES_COLUMN_INDEX] || ''; // Column 6 (index 5)
         
         if (dealId && notes) {
           notesMap.set(dealId, notes);
