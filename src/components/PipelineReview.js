@@ -109,6 +109,31 @@ function updatePipelineReview(individualSheet, person) {
     const deals = fetchDealsForAE(person);
     Logger.log(`  Found ${deals.length} deals`);
     
+    // 🛡️ SAFEGUARD: Handle empty deal list gracefully
+    if (deals.length === 0) {
+      Logger.log('  No deals found - clearing sheet and showing message');
+      sheet.clear();
+      sheet.getRange('A1').setValue('📊 Pipeline Review')
+        .setFontWeight('bold')
+        .setFontSize(14)
+        .setBackground('#4285F4')
+        .setFontColor('#FFFFFF');
+      sheet.getRange('A3').setValue('ℹ️ No active deals found matching filters:')
+        .setFontWeight('bold');
+      sheet.getRange('A4').setValue('• Stages: Negotiation, Partnership Proposal')
+        .setFontSize(10);
+      sheet.getRange('A5').setValue('• Created in last 90 days')
+        .setFontSize(10);
+      sheet.getRange('A6').setValue('• Not Closed Lost')
+        .setFontSize(10);
+      
+      return {
+        success: true,
+        dealCount: 0,
+        duration: (new Date() - startTime) / 1000
+      };
+    }
+    
     // Step 3: Build sheet data
     Logger.log('  Step 3: Building sheet data...');
     const dataArray = buildPipelineDataArray(deals, preservedData);

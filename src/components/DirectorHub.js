@@ -612,9 +612,14 @@ function syncDirectorHighlightingToAESheets(salespeople) {
         }
         
         const lastRow = pipelineSheet.getLastRow();
-        if (lastRow < 2) return;
-        
         const aeColumnCount = pipelineSheet.getLastColumn();
+        
+        // 🛡️ SAFEGUARD: Handle empty AE sheet gracefully
+        if (lastRow < 2) {
+          Logger.log(`    ${person.name}: No deals in sheet, skipping highlighting sync`);
+          return;
+        }
+        
         const dataRowCount = lastRow - 1;
         
         // Read Deal IDs from AE sheet (BATCH)
@@ -630,10 +635,22 @@ function syncDirectorHighlightingToAESheets(salespeople) {
         aeDealIds.forEach((dealId, index) => {
           if (!dealId) return;
           
+          // 🛡️ SAFEGUARD: Validate row index is within bounds
+          if (index >= currentBackgrounds.length || index >= currentFontColors.length) {
+            Logger.log(`    Warning: Row index ${index} out of bounds for ${person.name}, skipping`);
+            return;
+          }
+          
           const dealIdStr = dealId.toString();
           const highlighting = directorHighlightingMap.get(dealIdStr);
           
           if (highlighting) {
+            // 🛡️ SAFEGUARD: Validate highlighting data structure
+            if (!highlighting.backgrounds || !highlighting.fontColors) {
+              Logger.log(`    Warning: Invalid highlighting data for deal ${dealIdStr}, skipping`);
+              return;
+            }
+            
             // Director sheets have Owner column (21 cols), AE sheets don't (20 cols)
             // Need to remove Owner column (index 2) from highlighting arrays
             let adjustedBackgrounds = [...highlighting.backgrounds];
@@ -645,7 +662,7 @@ function syncDirectorHighlightingToAESheets(salespeople) {
               adjustedFontColors.splice(2, 1);
             }
             
-            // Ensure arrays match AE column count
+            // Ensure arrays match AE column count exactly
             while (adjustedBackgrounds.length < aeColumnCount) {
               adjustedBackgrounds.push('#ffffff'); // Default background
               adjustedFontColors.push('#000000'); // Default font color
@@ -653,6 +670,12 @@ function syncDirectorHighlightingToAESheets(salespeople) {
             while (adjustedBackgrounds.length > aeColumnCount) {
               adjustedBackgrounds.pop();
               adjustedFontColors.pop();
+            }
+            
+            // 🛡️ SAFEGUARD: Final validation before applying
+            if (adjustedBackgrounds.length !== aeColumnCount || adjustedFontColors.length !== aeColumnCount) {
+              Logger.log(`    Warning: Column count mismatch for deal ${dealIdStr} (expected ${aeColumnCount}), skipping`);
+              return;
             }
             
             // Update this row in the arrays
@@ -757,6 +780,28 @@ function updateDirectorConsolidatedPipeline(director, config, controlSheet) {
   if (allDeals.length > MAX_DIRECTOR_DEALS) {
     Logger.log(`    ⚠️ Limiting to ${MAX_DIRECTOR_DEALS} most recent deals (from ${allDeals.length})`);
     allDeals.splice(MAX_DIRECTOR_DEALS);
+  }
+  
+  // 🛡️ SAFEGUARD: Handle empty deal list gracefully
+  if (allDeals.length === 0) {
+    Logger.log(`    No deals found for ${director.team} team - clearing sheet and showing message`);
+    sheet.clear();
+    sheet.getRange('A1').setValue(`🎯 ${director.type} - ${director.team} Team`)
+      .setFontWeight('bold')
+      .setFontSize(14)
+      .setBackground('#9c27b0')
+      .setFontColor('#FFFFFF');
+    sheet.getRange('A3').setValue('ℹ️ No active deals found for this team matching filters:')
+      .setFontWeight('bold');
+    sheet.getRange('A4').setValue('• Stages: Negotiation, Partnership Proposal')
+      .setFontSize(10);
+    sheet.getRange('A5').setValue('• Created in last 90 days')
+      .setFontSize(10);
+    sheet.getRange('A6').setValue('• Not Closed Lost')
+      .setFontSize(10);
+    
+    Logger.log(`    ✓ ${director.tabName} cleared with message`);
+    return;
   }
   
   // Step 4: Collect notes from all individual AE sheets

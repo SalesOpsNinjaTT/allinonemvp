@@ -14,9 +14,30 @@
  * Run this from Control Sheet
  */
 function generateAllDashboards() {
-  const startTime = new Date();
-  Logger.log('=== All in One Dashboard Generation ===');
-  Logger.log(`Start time: ${startTime.toISOString()}`);
+  // 🔒 CRITICAL: Prevent concurrent executions (data corruption protection)
+  const lock = LockService.getScriptLock();
+  const lockAcquired = lock.tryLock(10000); // Wait up to 10 seconds
+  
+  if (!lockAcquired) {
+    const message = '⚠️ Dashboard generation is already running. Please wait for it to complete.';
+    Logger.log(message);
+    
+    try {
+      const activeSheet = SpreadsheetApp.getActiveSpreadsheet();
+      if (activeSheet) {
+        activeSheet.toast(message, 'Already Running', 10);
+      }
+    } catch (e) {
+      // No active spreadsheet
+    }
+    
+    return;
+  }
+  
+  try {
+    const startTime = new Date();
+    Logger.log('=== All in One Dashboard Generation ===');
+    Logger.log(`Start time: ${startTime.toISOString()}`);
   
   try {
     // 1. Load configuration from Control Sheet
@@ -137,6 +158,15 @@ function generateAllDashboards() {
     }
     
     throw error;
+  } finally {
+    // 🔒 CRITICAL: Always release the lock
+    lock.releaseLock();
+  }
+  
+  } catch (outerError) {
+    // This catches lock acquisition errors or other critical failures
+    Logger.log(`CRITICAL ERROR: ${outerError.message}`);
+    throw outerError;
   }
 }
 
